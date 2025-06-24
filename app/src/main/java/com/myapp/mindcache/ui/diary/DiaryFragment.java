@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentDiaryBinding;
 
@@ -31,6 +32,11 @@ public class DiaryFragment extends Fragment {
                 new ViewModelProvider(this).get(DiaryViewModel.class);
 
         binding = FragmentDiaryBinding.inflate(inflater, container, false);
+
+        binding.fab.setOnClickListener(view -> Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                .setAction("Action", null)
+                .setAnchorView(R.id.fab).show());
+
         View root = binding.getRoot();
 
         recyclerView = root.findViewById(R.id.recyclerView);
