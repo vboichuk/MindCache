@@ -9,15 +9,21 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.myapp.mindcache.R;
+import com.myapp.mindcache.model.FeedItem;
 
 import java.util.List;
 
 public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     private List<FeedItem> items;
-    private OnItemClickListener listener;
+    private final OnItemClickListener listener;
 
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
+    }
+
+    public void updateItems(List<FeedItem> items) {
+        this.items = items;
+        notifyDataSetChanged();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -48,7 +54,7 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         FeedItem note = items.get(position);
-        holder.tvDate.setText(note.getLocalDateTime().toString());
+        holder.tvDate.setText(note.getDateTime().toString());
         holder.tvEmoji.setText(note.getEmoji());
         holder.tvTitle.setText(note.getTitle());
         holder.tvContent.setText(note.getContent());

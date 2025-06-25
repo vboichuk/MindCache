@@ -1,0 +1,26 @@
+package com.myapp.mindcache.datastorage;
+
+import androidx.room.Dao;
+import androidx.room.Insert;
+import androidx.room.Query;
+import io.reactivex.Flowable;
+
+import com.myapp.mindcache.model.Note;
+
+import java.util.List;
+
+@Dao
+public interface NoteDao {
+
+    @Insert
+    long insert(Note note); // Возвращает ID новой записи
+
+    @Query("SELECT COUNT(*) FROM notes")
+    Flowable<Integer> getCount();
+
+    @Query("SELECT * FROM notes ORDER BY created_at DESC")
+    Flowable<List<Note>> getAllNotes();
+
+    @Query("DELETE FROM notes WHERE id = :id")
+    void delete(int id);
+}

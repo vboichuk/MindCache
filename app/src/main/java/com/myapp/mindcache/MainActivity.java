@@ -13,8 +13,10 @@ import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.room.DatabaseConfiguration;
 
 import com.myapp.mindcache.databinding.ActivityMainBinding;
+import com.myapp.mindcache.datastorage.AppDatabase;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,6 +26,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // DatabaseConfiguration configuration = new DatabaseConfiguration()
+        // AppDatabase.getInstance(this).init(configuration);
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

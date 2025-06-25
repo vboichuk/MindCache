@@ -39,7 +39,6 @@
             android:textStyle="bold"
             android:layout_marginTop="4dp"/>
 
-        <!-- Третья строка: объединённый текст (3 строки в одной) -->
         <TextView
             android:id="@+id/tvContent"
             android:layout_width="match_parent"

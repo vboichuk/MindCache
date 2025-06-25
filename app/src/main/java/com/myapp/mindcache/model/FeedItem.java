@@ -1,22 +1,26 @@
-package com.myapp.mindcache.ui.diary;
+package com.myapp.mindcache.model;
 
 import java.time.LocalDateTime;
 
 public class FeedItem {
-    private LocalDateTime localDateTime;
+
+
+    private final long id;
+    private LocalDateTime dateTime;
     private String emoji;
     private String title;
     private String content; // Все 3 строки объединены
 
-    public FeedItem(LocalDateTime date, String emoji, String title, String content) {
-        this.localDateTime = date;
-        this.emoji = emoji;
+    public FeedItem(long id, String title, String content, LocalDateTime dateTime, String emoji) {
+        this.id = id;
         this.title = title;
         this.content = content;
+        this.dateTime = dateTime;
+        this.emoji = emoji;
     }
 
-    // Геттеры
-    public LocalDateTime getLocalDateTime() { return localDateTime; }
+    public long getId() { return id; }
+    public LocalDateTime getDateTime() { return dateTime; }
     public String getEmoji() { return emoji; }
     public String getTitle() { return title; }
     public String getContent() { return content; }
