@@ -13,4 +13,6 @@
     <string name="error_loading_notes">Error loading notes</string>
     <string name="retry">retry</string>
     <string name="note_added_successfully">note added successfully</string>
+    <string name="hint_title">Title</string>
+    <string name="hint_content">Note</string>
 </resources>

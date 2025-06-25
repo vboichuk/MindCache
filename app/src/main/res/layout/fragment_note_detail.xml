@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:focusableInTouchMode="true" >
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
@@ -11,17 +12,9 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Просмотр заметки"
-            android:textColor="@android:color/white"
-            android:textSize="18sp" />
-
     </androidx.appcompat.widget.Toolbar>
 
-    <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/white"
@@ -32,11 +25,15 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <EditText
                 android:id="@+id/note_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:autofillHints="@string/hint_title"
+                android:inputType=""
                 android:textSize="24sp"
+                android:textColor="@color/black"
+                android:hint="@string/hint_title"
                 android:textStyle="bold"/>
 
             <TextView
@@ -44,13 +41,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="?android:attr/textColorSecondary"/>
+                android:textColor="@color/black"/>
 
-            <TextView
+            <EditText
                 android:id="@+id/note_content"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="18dp"
+                android:autofillHints="@string/hint_content"
+                android:hint="@string/hint_content"
+                android:textColor="@color/black"
+                android:inputType=""
+                android:lineSpacingExtra="10dp"
                 android:textSize="16sp"/>
 
         </LinearLayout>

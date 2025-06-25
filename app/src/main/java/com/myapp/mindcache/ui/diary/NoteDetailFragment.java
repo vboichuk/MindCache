@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,7 +21,6 @@ import com.myapp.mindcache.model.Note;
 
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Optional;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -29,9 +29,13 @@ import io.reactivex.schedulers.Schedulers;
 
 public class NoteDetailFragment extends Fragment {
     private static final String ARG_NOTE_ID = "note_id";
+    private static final String TAG = NoteDetailFragment.class.getSimpleName();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private NoteRepository repository;
     private Optional<Long> noteId = Optional.empty();
+
+    private EditText editTextTitle;
+    private EditText editTextContent;
 
     public static NoteDetailFragment newInstance(long noteId) {
         NoteDetailFragment fragment = new NoteDetailFragment();
@@ -66,6 +70,9 @@ public class NoteDetailFragment extends Fragment {
             loadNoteData(noteId, view);
         }
 
+        editTextTitle = view.findViewById(R.id.note_title);
+        editTextContent = view.findViewById(R.id.note_content);
+
         return view;
     }
 
@@ -84,9 +91,7 @@ public class NoteDetailFragment extends Fragment {
             supportActionBar.setDisplayShowHomeEnabled(true);
         }
 
-        toolbar.setNavigationOnClickListener(v -> {
-            requireActivity().getSupportFragmentManager().popBackStack();
-        });
+        toolbar.setNavigationOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
     }
 
     private void loadNoteData(long noteId, View rootView) {
@@ -106,14 +111,14 @@ public class NoteDetailFragment extends Fragment {
         View view = getView();
         if (view == null) return;
 
-        TextView titleView = view.findViewById(R.id.note_title);
-        TextView contentView = view.findViewById(R.id.note_content);
         TextView dateView = view.findViewById(R.id.note_date);
 
-        titleView.setText(note.title);
-        contentView.setText(note.content);
+        editTextTitle.setText(note.title);
+        editTextContent.setText(note.content);
         dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.createdAt)));
     }
+
+
 
     @Override
     public void onDestroyView() {
