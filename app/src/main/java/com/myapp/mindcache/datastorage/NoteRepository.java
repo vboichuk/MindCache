@@ -16,6 +16,7 @@ import javax.crypto.SecretKey;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
+import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
 
 public class NoteRepository {
@@ -45,10 +46,6 @@ public class NoteRepository {
                 .map(notes -> {
                     List<Note> decryptedNotes = new ArrayList<>();
                     for (Note note : notes) {
-                        LocalDateTime dateTime =
-                                LocalDateTime.ofInstant(Instant.ofEpochMilli(note.createdAt),
-                                        TimeZone.getDefault().toZoneId());
-
                         decryptedNotes.add(new Note(
                                 note.id,
                                 cryptoHelper.decrypt(note.title),
@@ -85,6 +82,17 @@ public class NoteRepository {
                 })
                 .subscribeOn(Schedulers.io())
                 .doOnError(e -> Log.e(TAG, "Error adding note", e));
+    }
+
+    public Single<Note> getNoteById(long id) {
+        return Single.fromCallable(() -> {
+            Note note = noteDao.getById(id);
+            if (note != null) {
+                note.title = cryptoHelper.decrypt(note.title);
+                note.content = cryptoHelper.decrypt(note.content);
+            }
+            return note;
+        }).subscribeOn(Schedulers.io());
     }
 
     public void deleteNote(int id) {

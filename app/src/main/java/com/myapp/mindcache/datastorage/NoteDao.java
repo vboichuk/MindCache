@@ -23,4 +23,7 @@ public interface NoteDao {
 
     @Query("DELETE FROM notes WHERE id = :id")
     void delete(int id);
+
+    @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
+    Note getById(long id);
 }

@@ -5,10 +5,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -55,8 +56,25 @@ public class DiaryFragment extends Fragment {
     }
 
     private void onAddClick() {
+        // Получаем FragmentManager из Activity
+        FragmentManager fragmentManager = ((AppCompatActivity)getContext())
+                .getSupportFragmentManager();
 
-        String title = "Вот еще одна заметка";
+        // Создаем транзакцию
+        fragmentManager.beginTransaction()
+                .setCustomAnimations(
+                        R.anim.slide_in,
+                        R.anim.slide_out,
+                        R.anim.slide_in,
+                        R.anim.slide_out)
+                .replace(R.id.fragment_container, NoteDetailFragment.newInstance())
+                .addToBackStack(null) // Добавляем в back stack
+                .commit();
+    }
+
+    private void addNoteTest() {
+
+        String title = "Моя новая заметка";
         String content = "Every ticket—a bug report or a feature request—is a short-term contract. You, the reporter, hire them to make a fix or implement a feature. They, the team of developers, do it for you—provided you pay, or their motivation is intrinsic—for example, in open source. The discussion that happens along the way may help clarify the requirements of the contract. It may also help the team convince you that the bug doesn’t deserve a fix. Also, it may help them deliver the fix to you and convince you to close the ticket. However, the discussion may also distract both parties if it loses focus.\n";
 
         // Подписка на Completable из ViewModel
@@ -121,7 +139,22 @@ public class DiaryFragment extends Fragment {
     }
 
     private void onNoteClick(FeedItem feedItem) {
-        Toast.makeText(getContext(), feedItem.getTitle() + " clicked", Toast.LENGTH_LONG).show();
+
+        long noteId = feedItem.getId();
+        // Получаем FragmentManager из Activity
+        FragmentManager fragmentManager = ((AppCompatActivity)getContext())
+                .getSupportFragmentManager();
+
+        // Создаем транзакцию
+        fragmentManager.beginTransaction()
+                .setCustomAnimations(
+                        R.anim.slide_in,
+                        R.anim.slide_out,
+                        R.anim.slide_in,
+                        R.anim.slide_out)
+                .replace(R.id.fragment_container, NoteDetailFragment.newInstance(noteId))
+                .addToBackStack(null) // Добавляем в back stack
+                .commit();
     }
 
     private void showError(Throwable throwable) {
