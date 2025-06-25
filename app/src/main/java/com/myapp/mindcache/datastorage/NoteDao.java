@@ -3,6 +3,8 @@ package com.myapp.mindcache.datastorage;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Update;
+
 import io.reactivex.Flowable;
 
 import com.myapp.mindcache.model.Note;
@@ -14,6 +16,9 @@ public interface NoteDao {
 
     @Insert
     long insert(Note note); // Возвращает ID новой записи
+
+    @Update
+    void update(Note note); // Метод для обновления существующей записи
 
     @Query("SELECT COUNT(*) FROM notes")
     Flowable<Integer> getCount();

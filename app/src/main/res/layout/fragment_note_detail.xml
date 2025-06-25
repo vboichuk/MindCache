@@ -2,8 +2,10 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    android:focusableInTouchMode="true" >
+
+    android:focusableInTouchMode="true">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
@@ -11,6 +13,8 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
+        app:title=""
+        app:subtitle=""
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
     </androidx.appcompat.widget.Toolbar>
 
@@ -33,6 +37,7 @@
                 android:inputType=""
                 android:textSize="24sp"
                 android:textColor="@color/black"
+                android:textColorHint="@android:color/darker_gray"
                 android:hint="@string/hint_title"
                 android:textStyle="bold"/>
 
@@ -41,6 +46,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:textColorHint="@android:color/darker_gray"
                 android:textColor="@color/black"/>
 
             <EditText
@@ -49,6 +55,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 android:autofillHints="@string/hint_content"
+                android:textColorHint="@android:color/darker_gray"
                 android:hint="@string/hint_content"
                 android:textColor="@color/black"
                 android:inputType=""

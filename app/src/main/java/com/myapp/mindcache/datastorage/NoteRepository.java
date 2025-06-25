@@ -98,4 +98,74 @@ public class NoteRepository {
     public void deleteNote(int id) {
         noteDao.delete(id);
     }
+
+    public Completable updateNote(Note note) {
+        if (note == null || TextUtils.isEmpty(note.title) || TextUtils.isEmpty(note.content)) {
+            return Completable.error(new IllegalArgumentException("Note data is invalid"));
+        }
+
+        return Completable.fromAction(() -> {
+                    try {
+                        // Шифруем данные перед сохранением
+                        String encryptedTitle = cryptoHelper.encrypt(note.title);
+                        String encryptedContent = cryptoHelper.encrypt(note.content);
+
+                        // Создаем новую заметку с зашифрованными данными, но тем же ID
+                        Note encryptedNote = new Note(
+                                note.id,
+                                encryptedTitle,
+                                encryptedContent,
+                                note.createdAt
+                        );
+
+                        noteDao.update(encryptedNote);
+                        Log.d(TAG, "Note updated with ID: " + note.id);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error updating note", e);
+                        throw new SecurityException("Failed to encrypt note data", e);
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .doOnError(e -> Log.e(TAG, "Error updating note", e));
+    }
+
+    /**
+     * Обновляет только заголовок и содержимое заметки
+     * @param id ID заметки для обновления
+     * @param title Новый заголовок
+     * @param content Новое содержимое
+     * @return Completable для отслеживания операции
+     */
+    public Completable updateNote(long id, String title, String content) {
+        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
+            return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
+        }
+
+        return Completable.fromAction(() -> {
+                    try {
+                        // Получаем существующую заметку
+                        Note existingNote = noteDao.getById(id);
+                        if (existingNote == null) {
+                            throw new IllegalArgumentException("Note with ID " + id + " not found");
+                        }
+
+                        // Шифруем новые данные
+                        String encryptedTitle = cryptoHelper.encrypt(title);
+                        String encryptedContent = cryptoHelper.encrypt(content);
+
+                        // Обновляем только необходимые поля
+                        existingNote.title = encryptedTitle;
+                        existingNote.content = encryptedContent;
+
+                        // Сохраняем изменения
+                        noteDao.update(existingNote);
+                        Log.d(TAG, "Note title and content updated for ID: " + id);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error updating note title and content", e);
+                        throw new SecurityException("Failed to update note", e);
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .doOnError(e -> Log.e(TAG, "Error updating note title and content", e));
+    }
 }

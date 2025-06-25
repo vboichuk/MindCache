@@ -74,12 +74,49 @@ public class DiaryViewModel extends AndroidViewModel {
                 });
     }
 
+    // Новый метод для обновления заметки
+    public Completable updateNote(Note note) {
+        if (note == null || note.title == null || note.title.isEmpty() ||
+                note.content == null || note.content.isEmpty()) {
+            return Completable.error(new IllegalArgumentException("Note data is invalid"));
+        }
+
+        isLoading.postValue(true);
+        return repository.updateNote(note)
+                .doOnComplete(() -> {
+                    isLoading.postValue(false);
+                    loadFeedItems(); // Обновляем список после изменения
+                })
+                .doOnError(error -> {
+                    errors.postValue(error);
+                    isLoading.postValue(false);
+                });
+    }
+
+    // Альтернативный метод для обновления (по ID и полям)
+    public Completable updateNote(long id, String title, String content) {
+        if (title == null || title.isEmpty() || content == null || content.isEmpty()) {
+            return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
+        }
+
+        isLoading.postValue(true);
+        return repository.updateNote(id, title, content)
+                .doOnComplete(() -> {
+                    isLoading.postValue(false);
+                    loadFeedItems(); // Обновляем список после изменения
+                })
+                .doOnError(error -> {
+                    errors.postValue(error);
+                    isLoading.postValue(false);
+                });
+    }
+
     private List<FeedItem> convertToFeedItems(List<Note> notes) {
         return notes.stream()
                 .map(note -> new FeedItem(
                         note.id,
                         note.title,
-                        getContentPreview(note.content),
+                        note.content,
                         LocalDateTime.ofInstant(
                                 Instant.ofEpochMilli(note.createdAt),
                                 ZoneId.systemDefault()),
@@ -97,19 +134,34 @@ public class DiaryViewModel extends AndroidViewModel {
         return "📘";
     }
 
-    private String getContentPreview(String content) {
-        if (content == null || content.isEmpty()) return "";
-
-        return content.trim()
-                .replace("\n", " ")
-                .replaceAll("\\s+", " ")
-                .substring(0, Math.min(content.length(), 100));
-    }
-
     @Override
     protected void onCleared() {
         super.onCleared();
         disposables.dispose();
         Log.d(TAG, "ViewModel cleared");
+    }
+
+    public LiveData<Note> getNoteById(long noteId) {
+        MutableLiveData<Note> result = new MutableLiveData<>();
+
+        disposables.add(repository.getNoteById(noteId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        note -> {
+                            if (note != null) {
+                                result.postValue(note);
+                            } else {
+                                result.postValue(null);
+                                errors.postValue(new Exception("Note not found"));
+                            }
+                        },
+                        error -> {
+                            errors.postValue(error);
+                            result.postValue(null);
+                        }
+                ));
+
+        return result;
     }
 }

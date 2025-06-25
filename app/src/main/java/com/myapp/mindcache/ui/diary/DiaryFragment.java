@@ -74,34 +74,7 @@ public class DiaryFragment extends Fragment {
 
     private void addNoteTest() {
 
-        String title = "Моя новая заметка";
-        String content = "Every ticket—a bug report or a feature request—is a short-term contract. You, the reporter, hire them to make a fix or implement a feature. They, the team of developers, do it for you—provided you pay, or their motivation is intrinsic—for example, in open source. The discussion that happens along the way may help clarify the requirements of the contract. It may also help the team convince you that the bug doesn’t deserve a fix. Also, it may help them deliver the fix to you and convince you to close the ticket. However, the discussion may also distract both parties if it loses focus.\n";
 
-        // Подписка на Completable из ViewModel
-        disposables.add(viewModel.addNote(title, content)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnSubscribe(d -> {})
-                .doFinally(() -> {})
-                .subscribe(
-                        () -> {
-                            // Успешное добавление
-                            Snackbar.make(binding.getRoot(),
-                                    R.string.note_added_successfully,
-                                    Snackbar.LENGTH_SHORT).show();
-
-                            // Автоматическое обновление через LiveData в ViewModel
-                        },
-                        throwable -> {
-                            // Обработка ошибок
-                            Log.e(TAG, "Error adding note", throwable);
-                            String errorMsg = throwable.getMessage();
-                            Snackbar.make(binding.getRoot(),
-                                            errorMsg,
-                                            Snackbar.LENGTH_LONG)
-                                    .show();
-                        }
-                ));
     }
 
     private void loadNotes() {
