@@ -15,10 +15,15 @@ import java.util.List;
 
 public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     private List<FeedItem> items;
-    private final OnItemClickListener listener;
+    private final OnItemClickListener clickListener;
+    private final OnItemLongClickListener longClickListener;
 
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
+    }
+
+    public interface OnItemLongClickListener {
+        void onItemLongClick(FeedItem note);
     }
 
     public void updateItems(List<FeedItem> items) {
@@ -38,9 +43,12 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
         }
     }
 
-    public FeedAdapter(List<FeedItem> notes, OnItemClickListener listener) {
+    public FeedAdapter(List<FeedItem> notes,
+                       OnItemClickListener listener,
+                       OnItemLongClickListener longClickListener) {
         this.items = notes;
-        this.listener = listener;
+        this.clickListener = listener;
+        this.longClickListener = longClickListener;
     }
 
     @NonNull
@@ -59,7 +67,8 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
         holder.tvTitle.setText(note.getTitle());
         holder.tvContent.setText(note.getContent());
 
-        holder.itemView.setOnClickListener(v -> listener.onItemClick(note));
+        holder.itemView.setOnClickListener(v -> clickListener.onItemClick(note));
+        holder.itemView.setOnLongClickListener(v -> { longClickListener.onItemLongClick(note); return true; });
     }
 
     @Override

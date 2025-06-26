@@ -5,8 +5,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -14,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentDiaryBinding;
@@ -25,7 +29,7 @@ import java.util.List;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.schedulers.Schedulers;
+import io.reactivex.disposables.Disposable;
 
 public class DiaryFragment extends Fragment {
 
@@ -57,7 +61,7 @@ public class DiaryFragment extends Fragment {
 
     private void onAddClick() {
         // Получаем FragmentManager из Activity
-        FragmentManager fragmentManager = ((AppCompatActivity)getContext())
+        FragmentManager fragmentManager = ((AppCompatActivity) getContext())
                 .getSupportFragmentManager();
 
         // Создаем транзакцию
@@ -105,10 +109,14 @@ public class DiaryFragment extends Fragment {
 
     private void setupRecyclerView() {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        FeedAdapter adapter = new FeedAdapter(new ArrayList<>(), this::onNoteClick);
+        FeedAdapter adapter = new FeedAdapter(new ArrayList<>(), this::onNoteClick, this::onNoteLongClick);
         recyclerView.setAdapter(adapter);
         recyclerView.setHasFixedSize(true);
         loadNotes();
+    }
+
+    private void onNoteLongClick(FeedItem feedItem) {
+        showBottomSheet(feedItem);
     }
 
     private void onNoteClick(FeedItem feedItem) {
@@ -128,6 +136,53 @@ public class DiaryFragment extends Fragment {
                 .replace(R.id.fragment_container, NoteDetailFragment.newInstance(noteId))
                 .addToBackStack(null) // Добавляем в back stack
                 .commit();
+    }
+
+    private void showBottomSheet(FeedItem feedItem) {
+        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this.getContext());
+
+        // Настройка элементов как в примере выше
+        View sheetLayoutView = getLayoutInflater().inflate(R.layout.bottom_sheet_layout, null);
+        Button btnDelete = sheetLayoutView.findViewById(R.id.btnDelete);
+        btnDelete.setOnClickListener(v -> {
+            showDeleteNoteDialog(feedItem);
+            bottomSheetDialog.dismiss();
+        });
+
+        bottomSheetDialog.setContentView(sheetLayoutView);
+        bottomSheetDialog.show();
+    }
+
+    private void showDeleteNoteDialog(FeedItem note) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this.getContext());
+        builder.setTitle("Подтверждение удаления");
+        builder.setMessage("Delete note '" + note.getTitle() + "'?" );
+
+        builder.setPositiveButton("Delete", (dialog, which) -> {
+            // Действие при подтверждении удаления
+            deleteNote(note.getId());
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Опционально: изменить цвет кнопки "Удалить" на красный
+        dialog.setOnShowListener(dialogInterface -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+        });
+    }
+
+    private void deleteNote(long id) {
+        Disposable subscribe = viewModel.deleteNote(id)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> Toast.makeText(requireContext(), "DELETED", Toast.LENGTH_SHORT).show(),
+                        error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show()
+                );
     }
 
     private void showError(Throwable throwable) {

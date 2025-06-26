@@ -6,11 +6,8 @@ import android.util.Log;
 
 import com.myapp.mindcache.model.Note;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TimeZone;
 
 import javax.crypto.SecretKey;
 
@@ -39,7 +36,6 @@ public class NoteRepository {
                 .doOnError(e -> Log.e(TAG, "Error loading notes", e));
     }
 
-    // В NoteRepository
     public Flowable<List<Note>> getAllDecryptedNotes() {
         return noteDao.getAllNotes()
                 .subscribeOn(Schedulers.io())
@@ -95,8 +91,24 @@ public class NoteRepository {
         }).subscribeOn(Schedulers.io());
     }
 
-    public void deleteNote(int id) {
-        noteDao.delete(id);
+    public Completable deleteNote(long id) {
+
+        return Completable.fromAction(() -> {
+                    try {
+                        Log.d(TAG, "start...");
+                        int deletedCount = noteDao.delete(id);
+                        if (deletedCount == 0) {
+                            Log.w(TAG, "No note found with ID: " + id);
+                            throw new RuntimeException("Note not found with ID: " + id);
+                        }
+                        Log.d(TAG, "Note deleted with ID: " + id + " (deleted " + deletedCount + " records)");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error deleting note with ID: " + id, e);
+                        throw new RuntimeException("Failed to delete note", e);
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .doOnError(e -> Log.e(TAG, "Error in deleteNote", e));
     }
 
     public Completable updateNote(Note note) {

@@ -16,4 +16,5 @@
     <string name="hint_title">Title</string>
     <string name="hint_content">Note</string>
     <string name="save">Save</string>
+    <string name="delete">Delete</string>
 </resources>

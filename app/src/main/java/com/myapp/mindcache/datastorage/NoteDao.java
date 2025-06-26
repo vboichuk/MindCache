@@ -27,7 +27,7 @@ public interface NoteDao {
     Flowable<List<Note>> getAllNotes();
 
     @Query("DELETE FROM notes WHERE id = :id")
-    void delete(int id);
+    int delete(long id);
 
     @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
     Note getById(long id);

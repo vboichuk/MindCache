@@ -1,4 +1,5 @@
 package com.myapp.mindcache.datastorage;
+
 import android.app.Application;
 import android.util.Log;
 
@@ -163,5 +164,38 @@ public class DiaryViewModel extends AndroidViewModel {
                 ));
 
         return result;
+    }
+
+    public Completable deleteNote(long id) {
+        isLoading.postValue(true);
+        isLoading.postValue(true);
+
+        // Убедитесь, что добавляете disposable в CompositeDisposable
+
+        Completable completable = repository.deleteNote(id) // Уже возвращает Completable
+                .doOnComplete(() -> {
+                    isLoading.postValue(false);
+                    loadFeedItems(); // Обновляем список после изменения
+                })
+                .doOnError(error -> {
+                    errors.postValue(error);
+                    isLoading.postValue(false);
+                });
+
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribe(
+//                        () -> {
+//                            isLoading.postValue(false);
+//                            loadFeedItems();
+//                            Log.d(TAG, "Note deleted successfully");
+//                        },
+//                        error -> {
+//                            errors.postValue(error);
+//                            isLoading.postValue(false);
+//                            Log.e(TAG, "Error deleting note", error);
+//                        }
+//                );
+        return completable;
     }
 }
