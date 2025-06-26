@@ -11,12 +11,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.model.FeedItem;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Locale;
 
 public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     private List<FeedItem> items;
     private final OnItemClickListener clickListener;
     private final OnItemLongClickListener longClickListener;
+    private final DateTimeFormatter formatter =
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.getDefault());
 
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
@@ -62,7 +67,8 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         FeedItem note = items.get(position);
-        holder.tvDate.setText(note.getDateTime().toString());
+
+        holder.tvDate.setText(note.getDateTime().format(formatter));
         holder.tvEmoji.setText(note.getEmoji());
         holder.tvTitle.setText(note.getTitle());
         holder.tvContent.setText(note.getContent());

@@ -26,7 +26,6 @@ import com.myapp.mindcache.model.Note;
 
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.Optional;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -38,7 +37,7 @@ public class NoteDetailFragment extends Fragment {
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private DiaryViewModel viewModel;
-    private Optional<Long> noteId = Optional.empty();
+    private Long noteId = 0L;
 
     private EditText editTextTitle;
     private EditText editTextContent;
@@ -67,8 +66,7 @@ public class NoteDetailFragment extends Fragment {
         this.viewModel = new ViewModelProvider(this).get(DiaryViewModel.class);
 
         if (getArguments() != null) {
-            long noteId = getArguments().getLong(ARG_NOTE_ID);
-            this.noteId = Optional.of(noteId);
+            this.noteId = getArguments().getLong(ARG_NOTE_ID);
             loadNoteData(noteId, view);
         }
         else {
@@ -119,10 +117,10 @@ public class NoteDetailFragment extends Fragment {
         View view = getView();
         if (view == null) return;
 
-        TextView dateView = view.findViewById(R.id.note_date);
-
         editTextTitle.setText(note.title);
         editTextContent.setText(note.content);
+
+        TextView dateView = view.findViewById(R.id.note_date);
         dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.createdAt)));
     }
 
@@ -144,8 +142,8 @@ public class NoteDetailFragment extends Fragment {
         String title = editTextTitle.getText().toString();
         String content = editTextContent.getText().toString();
 
-        if (noteId.isPresent()) {
-            Disposable subscribe = viewModel.updateNote(noteId.get(), title, content)
+        if (noteId > 0) {
+            Disposable subscribe = viewModel.updateNote(noteId, title, content)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             () -> {
