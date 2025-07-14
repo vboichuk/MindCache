@@ -1,6 +1,7 @@
 package com.myapp.mindcache.ui.diary;
 
 import android.os.Bundle;
+import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -117,11 +118,11 @@ public class NoteDetailFragment extends Fragment {
         View view = getView();
         if (view == null) return;
 
-        editTextTitle.setText(note.title);
-        editTextContent.setText(note.content);
+        editTextTitle.setText(note.getTitle());
+        editTextContent.setText(note.getContent());
 
         TextView dateView = view.findViewById(R.id.note_date);
-        dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.createdAt)));
+        dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.getCreatedAt())));
     }
 
     @Override
@@ -150,7 +151,12 @@ public class NoteDetailFragment extends Fragment {
                                  Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
                                  requireActivity().onBackPressed();
                             },
-                            error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show());
+                            error -> {
+                                if (error instanceof UserNotAuthenticatedException)
+                                    Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
+                                else
+                                    Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
         }
         else {
             // Подписка на Completable из ViewModel

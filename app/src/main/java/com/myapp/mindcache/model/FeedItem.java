@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 public class FeedItem {
 
-
     private final long id;
     private LocalDateTime dateTime;
     private String emoji;

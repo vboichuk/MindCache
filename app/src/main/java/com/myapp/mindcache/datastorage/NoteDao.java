@@ -15,10 +15,10 @@ import java.util.List;
 public interface NoteDao {
 
     @Insert
-    long insert(Note note); // Возвращает ID новой записи
+    long insert(Note note);
 
     @Update
-    void update(Note note); // Метод для обновления существующей записи
+    void update(Note note);
 
     @Query("SELECT COUNT(*) FROM notes")
     Flowable<Integer> getCount();

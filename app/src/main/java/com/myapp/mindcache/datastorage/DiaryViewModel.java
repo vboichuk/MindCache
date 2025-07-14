@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import io.reactivex.Completable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -21,7 +22,7 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class DiaryViewModel extends AndroidViewModel {
-    private static final String TAG = "DiaryViewModel";
+    private static final String TAG = DiaryViewModel.class.getSimpleName();
 
     private final NoteRepository repository;
     private final CompositeDisposable disposables = new CompositeDisposable();
@@ -48,7 +49,8 @@ public class DiaryViewModel extends AndroidViewModel {
 
     public void loadFeedItems() {
         isLoading.postValue(true);
-        disposables.add(repository.getAllDecryptedNotes()
+        final char[] password = "password".toCharArray();
+        disposables.add(repository.getAllDecryptedNotes(password)
                 .subscribeOn(Schedulers.io())
                 .map(this::convertToFeedItems) // Конвертируем Note в FeedItem
                 .observeOn(AndroidSchedulers.mainThread())
@@ -63,8 +65,9 @@ public class DiaryViewModel extends AndroidViewModel {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
+        final char[] password = "password".toCharArray();
         isLoading.postValue(true);
-        return repository.addNote(title, content)
+        return repository.addNote(title, content, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
                     loadFeedItems(); // Обновляем список после добавления
@@ -77,13 +80,14 @@ public class DiaryViewModel extends AndroidViewModel {
 
     // Новый метод для обновления заметки
     public Completable updateNote(Note note) {
-        if (note == null || note.title == null || note.title.isEmpty() ||
-                note.content == null || note.content.isEmpty()) {
+        if (note == null || note.getTitle() == null || note.getTitle().isEmpty() ||
+                note.getContent() == null || note.getContent().isEmpty()) {
             return Completable.error(new IllegalArgumentException("Note data is invalid"));
         }
 
+        final char[] password = "password".toCharArray();
         isLoading.postValue(true);
-        return repository.updateNote(note)
+        return repository.updateNote(note, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
                     loadFeedItems(); // Обновляем список после изменения
@@ -101,12 +105,14 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        return repository.updateNote(id, title, content)
+        final char[] password = "password".toCharArray();
+        return repository.updateNote(id, title, content, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
                     loadFeedItems(); // Обновляем список после изменения
                 })
                 .doOnError(error -> {
+                    Log.e(TAG, Objects.requireNonNull(error.getMessage()));
                     errors.postValue(error);
                     isLoading.postValue(false);
                 });
@@ -115,11 +121,11 @@ public class DiaryViewModel extends AndroidViewModel {
     private List<FeedItem> convertToFeedItems(List<Note> notes) {
         return notes.stream()
                 .map(note -> new FeedItem(
-                        note.id,
-                        note.title,
-                        note.content,
+                        note.getId(),
+                        note.getTitle(),
+                        note.getContent(),
                         LocalDateTime.ofInstant(
-                                Instant.ofEpochMilli(note.createdAt),
+                                Instant.ofEpochMilli(note.getCreatedAt()),
                                 ZoneId.systemDefault()),
                         getEmojiForNote(note)
                 ))
@@ -128,7 +134,7 @@ public class DiaryViewModel extends AndroidViewModel {
     }
 
     private String getEmojiForNote(Note note) {
-        String lowerTitle = note.title.toLowerCase();
+        String lowerTitle = note.getTitle().toLowerCase();
         if (lowerTitle.contains("важно")) return "❗";
         if (lowerTitle.contains("идея")) return "💡";
         if (lowerTitle.contains("задача")) return "✅";
@@ -144,8 +150,8 @@ public class DiaryViewModel extends AndroidViewModel {
 
     public LiveData<Note> getNoteById(long noteId) {
         MutableLiveData<Note> result = new MutableLiveData<>();
-
-        disposables.add(repository.getNoteById(noteId)
+        final char[] password = "password".toCharArray();
+        disposables.add(repository.getNoteById(noteId, password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(

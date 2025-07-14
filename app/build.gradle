@@ -46,6 +46,8 @@ dependencies {
     implementation libs.room.runtime
     annotationProcessor libs.room.compiler
 
+    implementation libs.biometric
+
     implementation libs.rxjava
     implementation libs.rxandroid
     implementation libs.room.rxjava2

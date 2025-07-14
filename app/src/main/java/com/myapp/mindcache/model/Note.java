@@ -8,19 +8,15 @@ import androidx.room.PrimaryKey;
 @Entity(tableName = "notes")
 public class Note {
     @PrimaryKey(autoGenerate = true)
-    public long id;
+    private long id;
 
     @ColumnInfo(name = "created_at")
-    public long createdAt = System.currentTimeMillis();
+    private long createdAt = System.currentTimeMillis();
 
-    @ColumnInfo(name = "title")
-    public String title;
+    private String title;    // encrypted
+    private String content;  // encrypted
+    private String salt;     // Base64-соль (null, если заметка не зашифрована)
 
-    @ColumnInfo(name = "content")
-    public String content;
-
-    @ColumnInfo(name = "is_encrypted", defaultValue = "1")
-    public boolean isEncrypted;
 
     public Note(long id, String title, String content, long createdAt) {
         this.id = id;
@@ -36,8 +32,59 @@ public class Note {
         this.createdAt = createdAt;
     }
 
+    public Note(long id, String decryptedTitle, String decryptedContent, long createdAt, String salt) {
+        this.id = id;
+        this.title = decryptedTitle;
+        this.content = decryptedContent;
+        this.createdAt = createdAt;
+        this.salt = salt;
+    }
+
     public void clearSensitiveData() {
         content = null;
         title = null;
+    }
+
+
+    // Геттеры
+    public long getId() {
+        return id;
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public String getSalt() {
+        return salt;
+    }
+
+    // Сеттеры
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 }
