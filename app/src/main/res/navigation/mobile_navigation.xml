@@ -3,7 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/nav_diary">
+    app:startDestination="@id/nav_auth" >
+
+    <!-- Фрагмент авторизации -->
+    <fragment
+        android:id="@+id/nav_auth"
+        android:name="com.myapp.mindcache.ui.auth.AuthFragment"
+        android:label="AuthFragment">
+        <action
+            android:id="@+id/action_auth_to_diary"
+            app:destination="@id/nav_diary" />
+    </fragment>
 
     <fragment
         android:id="@+id/nav_diary"
