@@ -6,6 +6,7 @@ import androidx.room.Query;
 import androidx.room.Update;
 
 import io.reactivex.Flowable;
+import io.reactivex.Single;
 
 import com.myapp.mindcache.model.Note;
 
@@ -24,7 +25,7 @@ public interface NoteDao {
     Flowable<Integer> getCount();
 
     @Query("SELECT * FROM notes ORDER BY created_at DESC")
-    Flowable<List<Note>> getAllNotes();
+    Single<List<Note>> getAllNotes();
 
     @Query("DELETE FROM notes WHERE id = :id")
     int delete(long id);

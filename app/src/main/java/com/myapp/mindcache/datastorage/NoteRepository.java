@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
+import javax.crypto.AEADBadTagException;
+
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -31,48 +33,51 @@ public class NoteRepository {
         this.encryptionService = encryptionService;
     }
 
-    public Flowable<List<Note>> getAllNotes(char[] password) {
-        validatePassword(password);
+    public Single<List<Note>> getAllNotes(char[] password) {
         return noteDao.getAllNotes()
-                .subscribeOn(Schedulers.io())
-                .map(notes -> {
-                    try {
-                        List<Note> decryptedNotes = new ArrayList<>();
-                        for (Note note : notes) {
-                            decryptedNotes.add(encryptionService.decryptNote(note, password));
-                        }
-                        return decryptedNotes;
-                    } finally {
-                        clearPassword(password);
+                .flatMap(notes -> {
+                    // Дешифровка заметок
+                    List<Note> decryptedNotes = new ArrayList<>();
+                    for (Note note : notes) {
+                        decryptedNotes.add(encryptionService.decryptNote(note, password));
+                    }
+                    return Single.just(decryptedNotes);
+                })
+                .doOnSuccess(notes -> {
+                    // Кешируем результат после успешной дешифровки
+                })
+                .doOnDispose(() -> {
+                    // Очищаем пароль при отмене операции
+                    if (password != null) {
+                        Arrays.fill(password, '\0');
                     }
                 })
-                .doOnError(e -> Log.e(TAG, "Error loading notes", e));
+                .subscribeOn(Schedulers.io());
     }
 
-    public Completable insertNote(String title, String content, char[] password) {
-
-        validatePassword(password);
-        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
-            return Completable.error(new IllegalArgumentException("Title/content cannot be empty"));
+    public Single<Long> insertNote(Note note, char[] password) {
+        // Валидация входных данных
+        if (note == null || TextUtils.isEmpty(note.getTitle()) || TextUtils.isEmpty(note.getContent())) {
+            return Single.error(new IllegalArgumentException("Note data is invalid"));
         }
 
-        return Completable.fromAction(() -> {
-                    try {
-                        Note note = new Note(title, content, System.currentTimeMillis());
-                        KeyGenerator generator = new KeyGeneratorImpl();
-                        byte[] salt = generator.generateSalt();
-                        note.setSalt(Base64.getEncoder().encodeToString(salt));
-                        long id = noteDao.insert(encryptionService.encryptNote(note, password));
-                        Log.e(TAG, "Added note id:" + id);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Encryption failed: " + e.getMessage()); // Без stacktrace
-                        throw new SecurityException("Encryption error");
-                    } finally {
-                        clearPassword(password);
-                    }
-                })
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error adding note", e));
+        return Single.fromCallable(() -> {
+                try {
+                    KeyGenerator generator = new KeyGeneratorImpl();
+                    byte[] salt = generator.generateSalt();
+                    note.setSalt(Base64.getEncoder().encodeToString(salt));
+                    Note encryptedNote = encryptionService.encryptNote(note, password);
+                    return noteDao.insert(encryptedNote);
+                } catch (Exception e) {
+                    Log.e(TAG, "Insert failed: " + e.getMessage());
+                    throw new SecurityException("Encryption error", e);
+                } finally {
+                    Arrays.fill(password, '\0');
+                }
+            })
+            .subscribeOn(Schedulers.io())
+            .doOnSuccess(id -> Log.d(TAG, "Inserted note with ID: " + id))
+            .doOnError(e -> Log.e(TAG, "Error inserting note", e));
     }
 
     public Single<Note> getNoteById(long id, char[] password) {
@@ -149,6 +154,6 @@ public class NoteRepository {
 
     private void clearPassword(char[] password) {
         Arrays.fill(password, '\0');
-        Log.e(TAG, "password was cleared");
+        Log.i(TAG, "password was cleared");
     }
 }

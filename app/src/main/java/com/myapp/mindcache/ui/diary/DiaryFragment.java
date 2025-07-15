@@ -10,15 +10,15 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
-import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleEventObserver;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -35,8 +35,6 @@ import com.myapp.mindcache.security.PasswordManagerImpl;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -50,35 +48,23 @@ public class DiaryFragment extends Fragment {
     private DiaryViewModel viewModel;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
-    private final Executor executor = Executors.newSingleThreadExecutor();
-    private boolean isAuthenticated = false;
-
     public void onCreate(Bundle savedInstance) {
         super.onCreate(savedInstance);
 
-        getLifecycle().addObserver((LifecycleEventObserver) (source, event) -> {
-            Log.i(TAG, "onStateChanged: " + event.name());
-            if (event == Lifecycle.Event.ON_RESUME && !isAuthenticated) {
-                showBiometricPrompt();
-            }
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                isAuthenticated = false;
-                // KeystoreSecureKeyManager
-            }
-        });
+        getLifecycle().addObserver((LifecycleEventObserver) (source, event)
+                -> Log.i(TAG, "onStateChanged: " + event.name()));
     }
 
     @Override
     public void onPause() {
-        Log.i(TAG, "onPause()");
+        Log.i(TAG, "onPause");
         super.onPause();
-        isAuthenticated = false; // Сбрасываем аутентификацию при уходе из приложения
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        // initViewModel();
+        Log.d(TAG, "onCreateView");
 
         binding = FragmentDiaryBinding.inflate(inflater, container, false);
         binding.fab.setOnClickListener(view -> this.onAddClick());
@@ -86,87 +72,20 @@ public class DiaryFragment extends Fragment {
         View root = binding.getRoot();
         recyclerView = root.findViewById(R.id.recyclerView);
 
-        showBiometricPrompt();
-
         return root;
     }
 
-    private void showBiometricPrompt() {
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Вход в приложение")
-                .setSubtitle("Приложите палец к сканеру")
-                .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_WEAK |
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                .build();
-
-        BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                super.onAuthenticationSucceeded(result);
-                DiaryFragment.this.onAuthSuccess();
-            }
-
-            @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                DiaryFragment.this.onAuthFailed();
-            }
-
-            @Override
-            public void onAuthenticationError(int errorCode, CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                DiaryFragment.this.onAuthError(errorCode, errString.toString());
-            }
-        });
-
-        biometricPrompt.authenticate(promptInfo);
-    }
-
-
-    private void onAuthError(int errorCode, String errString) {
-        if (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
-        ) {
-            this.getActivity().finish();
-        }
-
-        getActivity().runOnUiThread(() -> {
-            String text = "Error: " + errorCode + " (" + errString + ")";
-            Snackbar.make(binding.getRoot(),
-                            text, Snackbar.LENGTH_LONG)
-                    // .setAction(R.string.retry, v -> loadNotes())
-                    .show();
-        });
-    }
-
-    private void onAuthFailed() {
-        getActivity().runOnUiThread(() -> {
-            Snackbar.make(binding.getRoot(),
-                            "Лицо не распознано",
-                            Snackbar.LENGTH_LONG)
-                    // .setAction(R.string.retry, v -> loadNotes())
-                    .show();
-        });
-    }
-
-    private void onAuthSuccess() {
-        isAuthenticated = true;
         initViewModel();
-        getActivity().runOnUiThread(() -> {
-            setupRecyclerView();
-            Snackbar.make(binding.getRoot(),
-                            R.string.auth_successful,
-                            Snackbar.LENGTH_LONG)
-                    // .setAction(R.string.retry, v -> loadNotes())
-                    .show();
-
-        });
+        setupRecyclerView();
+        loadNotes();
     }
-
 
     private void initViewModel() {
+        Log.d(TAG, "initViewModel");
         KeystoreSecureKeyManager secureKeyManager = null;
         try {
             secureKeyManager = new KeystoreSecureKeyManager();
@@ -181,23 +100,23 @@ public class DiaryFragment extends Fragment {
     }
 
     private void onAddClick() {
-        // Получаем FragmentManager из Activity
-        FragmentManager fragmentManager = ((AppCompatActivity) getContext())
-                .getSupportFragmentManager();
+        Log.d(TAG, "onAddClick");
+        NavController navController = Navigation.findNavController(requireView());
+        navController.navigate(R.id.action_diary_to_noteDetail);
+    }
 
-        // Создаем транзакцию
-        fragmentManager.beginTransaction()
-                .setCustomAnimations(
-                        R.anim.slide_in,
-                        R.anim.slide_out,
-                        R.anim.slide_in,
-                        R.anim.slide_out)
-                .replace(R.id.fragment_container, NoteDetailFragment.newInstance())
-                .addToBackStack(null) // Добавляем в back stack
-                .commit();
+    private void onNoteClick(FeedItem feedItem) {
+        long noteId = feedItem.getId();
+        Log.d(TAG, "onNoteClick id:" + noteId);
+        Bundle args = new Bundle();
+        args.putLong("noteId", noteId);
+
+        NavController navController = Navigation.findNavController(requireView());
+        navController.navigate(R.id.action_diary_to_noteDetail, args);
     }
 
     private void loadNotes() {
+        Log.d(TAG, "loadNotes");
 
         // Подписываемся на LiveData из ViewModel
         viewModel.getFeedItems().observe(getViewLifecycleOwner(), this::updateAdapter);
@@ -209,7 +128,7 @@ public class DiaryFragment extends Fragment {
         });
 
         // Инициируем загрузку (если не делаем auto-load в ViewModel)
-        viewModel.loadFeedItems();
+        viewModel.loadAllNotes(true);
     }
 
     private void updateAdapter(List<FeedItem> notes) {
@@ -226,30 +145,10 @@ public class DiaryFragment extends Fragment {
         FeedAdapter adapter = new FeedAdapter(new ArrayList<>(), this::onNoteClick, this::onNoteLongClick);
         recyclerView.setAdapter(adapter);
         recyclerView.setHasFixedSize(true);
-        loadNotes();
     }
 
     private void onNoteLongClick(FeedItem feedItem) {
         showBottomSheet(feedItem);
-    }
-
-    private void onNoteClick(FeedItem feedItem) {
-
-        long noteId = feedItem.getId();
-        // Получаем FragmentManager из Activity
-        FragmentManager fragmentManager = ((AppCompatActivity)getContext())
-                .getSupportFragmentManager();
-
-        // Создаем транзакцию
-        fragmentManager.beginTransaction()
-                .setCustomAnimations(
-                        R.anim.slide_in,
-                        R.anim.slide_out,
-                        R.anim.slide_in,
-                        R.anim.slide_out)
-                .replace(R.id.fragment_container, NoteDetailFragment.newInstance(noteId))
-                .addToBackStack(null) // Добавляем в back stack
-                .commit();
     }
 
     private void showBottomSheet(FeedItem feedItem) {
@@ -294,7 +193,11 @@ public class DiaryFragment extends Fragment {
         Disposable subscribe = viewModel.deleteNote(id)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        () -> Toast.makeText(requireContext(), "DELETED", Toast.LENGTH_SHORT).show(),
+                        () -> {
+                            Log.d(TAG, "deleteNote OK");
+                            Toast.makeText(requireContext(), "DELETED", Toast.LENGTH_SHORT).show();
+                            viewModel.loadAllNotes(false);
+                        },
                         error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show()
                 );
     }
@@ -309,7 +212,6 @@ public class DiaryFragment extends Fragment {
                     .show();
         }
     }
-
 
     @Override
     public void onDestroyView() {

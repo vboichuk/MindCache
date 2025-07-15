@@ -16,11 +16,10 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
@@ -39,7 +38,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class NoteDetailFragment extends Fragment {
-    private static final String ARG_NOTE_ID = "note_id";
+    private static final String ARG_NOTE_ID = "noteId";
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private DiaryViewModel viewModel;
@@ -73,8 +72,11 @@ public class NoteDetailFragment extends Fragment {
         initViewModel();
 
         if (getArguments() != null) {
-            this.noteId = getArguments().getLong(ARG_NOTE_ID);
-            loadNoteData(noteId, view);
+            long id = getArguments().getLong(ARG_NOTE_ID);
+            if (id > 0L) {
+                this.noteId = id;
+                loadNoteData(noteId);
+            }
         }
         else {
             setupEmptyNote();
@@ -107,29 +109,28 @@ public class NoteDetailFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Настройка Toolbar
-        Toolbar toolbar = view.findViewById(R.id.toolbar);
-        ((AppCompatActivity) requireActivity()).setSupportActionBar(toolbar);
-
-        // Добавляем кнопку назад
-        ActionBar supportActionBar = ((AppCompatActivity) requireActivity()).getSupportActionBar();
-        if (supportActionBar != null) {
-            supportActionBar.setDisplayHomeAsUpEnabled(true);
-            supportActionBar.setDisplayShowHomeEnabled(true);
-            supportActionBar.setDisplayShowTitleEnabled(false);
-        }
-
-        toolbar.setNavigationOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
+//        // Настройка Toolbar
+//        Toolbar toolbar = view.findViewById(R.id.toolbar);
+//        ((AppCompatActivity) requireActivity()).setSupportActionBar(toolbar);
+//
+//        // Добавляем кнопку назад
+//        ActionBar supportActionBar = ((AppCompatActivity) requireActivity()).getSupportActionBar();
+//        if (supportActionBar != null) {
+//            supportActionBar.setDisplayHomeAsUpEnabled(true);
+//            supportActionBar.setDisplayShowHomeEnabled(true);
+//            supportActionBar.setDisplayShowTitleEnabled(false);
+//        }
+//
+//        toolbar.setNavigationOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
     }
 
-    private void loadNoteData(long noteId, View rootView) {
-
+    private void loadNoteData(long noteId) {
         viewModel.getNoteById(noteId).observe(getViewLifecycleOwner(), note -> {
             if (note != null) {
                 displayNote(note);
             } else {
-                Toast.makeText(requireContext(), "Failed to load note", Toast.LENGTH_SHORT).show();
-                requireActivity().onBackPressed();
+                Toast.makeText(requireContext(), "Failed to load note id:" + noteId, Toast.LENGTH_LONG).show();
+                navigateBack();
             }
         });
     }
@@ -169,7 +170,7 @@ public class NoteDetailFragment extends Fragment {
                     .subscribe(
                             () -> {
                                  Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                 requireActivity().onBackPressed();
+                                 navigateBack();
                             },
                             error -> {
                                 if (error instanceof UserNotAuthenticatedException)
@@ -190,8 +191,7 @@ public class NoteDetailFragment extends Fragment {
                                     () -> {
                                         // Успешное добавление
                                         Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                        requireActivity().onBackPressed();
-                                        // Автоматическое обновление через LiveData в ViewModel
+                                        navigateBack();
                                     },
                                     throwable -> {
                                         // Обработка ошибок
@@ -201,6 +201,15 @@ public class NoteDetailFragment extends Fragment {
                                     }
                             )
             );
+        }
+    }
+
+    private void navigateBack() {
+        try {
+            NavController navController = Navigation.findNavController(requireView());
+             navController.popBackStack();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, e.getMessage());
         }
     }
 
