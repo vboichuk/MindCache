@@ -29,21 +29,14 @@ public class KeyGeneratorImpl implements KeyGenerator {
     @Override
     public SecretKey generateDataKey(char[] userPassword, byte[] salt) throws CryptoException {
         String saltBase64 = Base64.getEncoder().encodeToString(salt); // Байты -> Base64
-        System.out.println("generateDataKey by "+ Arrays.toString(userPassword) + " and " + saltBase64);
 
         if (userPassword == null || userPassword.length == 0) {
-            throw new CryptoException("Password cannot be null or empty");
-        }
-
-        if (userPassword[0] != 'p') {
-             assert (false);
-            // throw new CryptoException("Wrong password!");
+            throw new IllegalArgumentException("Password cannot be null or empty");
         }
 
         if (salt == null || salt.length < 16) {
             throw new CryptoException("Salt must be at least 16 bytes long");
         }
-
 
         try {
             // 1. Создаем фабрику для PBKDF2

@@ -9,6 +9,12 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import com.myapp.mindcache.model.FeedItem;
 import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.security.CryptoHelper;
+import com.myapp.mindcache.security.KeyGenerator;
+import com.myapp.mindcache.security.KeyGeneratorImpl;
+import com.myapp.mindcache.security.NoteEncryptionService;
+import com.myapp.mindcache.security.PasswordManager;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -30,10 +36,16 @@ public class DiaryViewModel extends AndroidViewModel {
     private final MutableLiveData<Throwable> errors = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
 
-    public DiaryViewModel(@NonNull Application application) {
+    private final PasswordManager passwordManager;
+
+    public DiaryViewModel(@NonNull Application application, PasswordManager passwordManager) {
         super(application);
+        this.passwordManager = passwordManager;
         try {
-            repository = new NoteRepository(application);
+            KeyGenerator generator = new KeyGeneratorImpl();
+            CryptoHelper cryptoHelper = new CryptoHelper();
+            NoteEncryptionService service = new NoteEncryptionService(generator, cryptoHelper);
+            repository = new NoteRepository(application, service);
             loadFeedItems();
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize NoteRepository", e);
@@ -43,14 +55,15 @@ public class DiaryViewModel extends AndroidViewModel {
     public LiveData<List<FeedItem>> getFeedItems() {
         return notes;
     }
+
     public LiveData<Throwable> getErrors() {
         return errors;
     }
 
     public void loadFeedItems() {
         isLoading.postValue(true);
-        final char[] password = "password".toCharArray();
-        disposables.add(repository.getAllDecryptedNotes(password)
+        char[] password = passwordManager.getUserPassword();
+        disposables.add(repository.getAllNotes(password)
                 .subscribeOn(Schedulers.io())
                 .map(this::convertToFeedItems) // Конвертируем Note в FeedItem
                 .observeOn(AndroidSchedulers.mainThread())
@@ -65,32 +78,12 @@ public class DiaryViewModel extends AndroidViewModel {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
-        final char[] password = "password".toCharArray();
+        char[] password = passwordManager.getUserPassword();
         isLoading.postValue(true);
-        return repository.addNote(title, content, password)
+        return repository.insertNote(title, content, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
                     loadFeedItems(); // Обновляем список после добавления
-                })
-                .doOnError(error -> {
-                    errors.postValue(error);
-                    isLoading.postValue(false);
-                });
-    }
-
-    // Новый метод для обновления заметки
-    public Completable updateNote(Note note) {
-        if (note == null || note.getTitle() == null || note.getTitle().isEmpty() ||
-                note.getContent() == null || note.getContent().isEmpty()) {
-            return Completable.error(new IllegalArgumentException("Note data is invalid"));
-        }
-
-        final char[] password = "password".toCharArray();
-        isLoading.postValue(true);
-        return repository.updateNote(note, password)
-                .doOnComplete(() -> {
-                    isLoading.postValue(false);
-                    loadFeedItems(); // Обновляем список после изменения
                 })
                 .doOnError(error -> {
                     errors.postValue(error);
@@ -105,7 +98,7 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        final char[] password = "password".toCharArray();
+        char[] password = passwordManager.getUserPassword();
         return repository.updateNote(id, title, content, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
@@ -138,6 +131,7 @@ public class DiaryViewModel extends AndroidViewModel {
         if (lowerTitle.contains("важно")) return "❗";
         if (lowerTitle.contains("идея")) return "💡";
         if (lowerTitle.contains("задача")) return "✅";
+        if (lowerTitle.contains("мысли")) return "💭";
         return "📘";
     }
 
@@ -150,7 +144,7 @@ public class DiaryViewModel extends AndroidViewModel {
 
     public LiveData<Note> getNoteById(long noteId) {
         MutableLiveData<Note> result = new MutableLiveData<>();
-        final char[] password = "password".toCharArray();
+        char[] password = passwordManager.getUserPassword();
         disposables.add(repository.getNoteById(noteId, password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())

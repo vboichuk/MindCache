@@ -1,5 +1,6 @@
 package com.myapp.mindcache.ui.diary;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
@@ -23,7 +24,11 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
+import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
 import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.security.KeystoreSecureKeyManager;
+import com.myapp.mindcache.security.PasswordManager;
+import com.myapp.mindcache.security.PasswordManagerImpl;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -64,7 +69,8 @@ public class NoteDetailFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_note_detail, container, false);
-        this.viewModel = new ViewModelProvider(this).get(DiaryViewModel.class);
+
+        initViewModel();
 
         if (getArguments() != null) {
             this.noteId = getArguments().getLong(ARG_NOTE_ID);
@@ -78,6 +84,20 @@ public class NoteDetailFragment extends Fragment {
         editTextContent = view.findViewById(R.id.note_content);
 
         return view;
+    }
+
+    private void initViewModel() {
+        KeystoreSecureKeyManager secureKeyManager = null;
+        try {
+            secureKeyManager = new KeystoreSecureKeyManager();
+            PasswordManager passwordManager = new PasswordManagerImpl(secureKeyManager);
+            Activity activity = this.getActivity();
+            assert activity != null;
+            DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
+            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void setupEmptyNote() {

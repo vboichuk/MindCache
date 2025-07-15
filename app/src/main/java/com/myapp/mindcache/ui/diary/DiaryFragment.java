@@ -1,5 +1,6 @@
 package com.myapp.mindcache.ui.diary;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -26,20 +27,16 @@ import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentDiaryBinding;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
+import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
 import com.myapp.mindcache.model.FeedItem;
-import com.myapp.mindcache.security.KeyGenerator;
-import com.myapp.mindcache.security.KeyGeneratorImpl;
-import com.myapp.mindcache.security.SPSecureKeyManager;
-import com.myapp.mindcache.security.SecureKeyManager;
+import com.myapp.mindcache.security.KeystoreSecureKeyManager;
+import com.myapp.mindcache.security.PasswordManager;
+import com.myapp.mindcache.security.PasswordManagerImpl;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-
-import javax.crypto.SecretKey;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -170,7 +167,17 @@ public class DiaryFragment extends Fragment {
 
 
     private void initViewModel() {
-        viewModel = new ViewModelProvider(this).get(DiaryViewModel.class);
+        KeystoreSecureKeyManager secureKeyManager = null;
+        try {
+            secureKeyManager = new KeystoreSecureKeyManager();
+            PasswordManager passwordManager = new PasswordManagerImpl(secureKeyManager);
+            Activity activity = this.getActivity();
+            assert activity != null;
+            DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
+            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void onAddClick() {

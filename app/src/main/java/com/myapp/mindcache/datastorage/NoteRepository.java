@@ -6,102 +6,69 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.myapp.mindcache.model.Note;
-import com.myapp.mindcache.security.CryptoHelper;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
-import com.myapp.mindcache.security.SPSecureKeyManager;
-import com.myapp.mindcache.security.SecureKeyManager;
+import com.myapp.mindcache.security.NoteEncryptionService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
-import javax.crypto.SecretKey;
-
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
-import kotlin.NotImplementedError;
 
 public class NoteRepository {
     private static final String TAG = NoteRepository.class.getSimpleName();
     private final NoteDao noteDao;
-    private final CryptoHelper cryptoHelper;
+    private final NoteEncryptionService encryptionService;
 
-    public NoteRepository(Context context) throws Exception {
+    public NoteRepository(Context context, NoteEncryptionService encryptionService) {
         AppDatabase db = AppDatabase.getInstance(context);
         this.noteDao = db.noteDao();
-
-        // SecureKeyManager secureKeyManager = new KeystoreSecureKeyManager();
-        SecureKeyManager secureKeyManager = new SPSecureKeyManager();
-
-        SecretKey secretKey = secureKeyManager.getOrCreateKey();
-        this.cryptoHelper = new CryptoHelper(secretKey);
+        this.encryptionService = encryptionService;
     }
 
-    public Flowable<List<Note>> getAllNotes() {
-        return noteDao.getAllNotes()
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error loading notes", e));
-    }
-
-    public Flowable<List<Note>> getAllDecryptedNotes(char[] password) {
+    public Flowable<List<Note>> getAllNotes(char[] password) {
+        validatePassword(password);
         return noteDao.getAllNotes()
                 .subscribeOn(Schedulers.io())
                 .map(notes -> {
-                    List<Note> decryptedNotes = new ArrayList<>();
-                    for (Note note : notes) {
-                        KeyGenerator generator = new KeyGeneratorImpl();
-                        byte[] salt = Base64.getDecoder().decode(note.getSalt());
-                        SecretKey key = generator.generateDataKey(password, salt);
-                        decryptedNotes.add(new Note(
-                                note.getId(),
-                                cryptoHelper.decrypt(note.getTitle(), key),
-                                cryptoHelper.decrypt(note.getContent(), key),
-                                note.getCreatedAt()
-                        ));
+                    try {
+                        List<Note> decryptedNotes = new ArrayList<>();
+                        for (Note note : notes) {
+                            decryptedNotes.add(encryptionService.decryptNote(note, password));
+                        }
+                        return decryptedNotes;
+                    } finally {
+                        clearPassword(password);
                     }
-                    return decryptedNotes;
                 })
                 .doOnError(e -> Log.e(TAG, "Error loading notes", e));
     }
 
-    public Completable addNote(String title, String content, char[] password) {
+    public Completable insertNote(String title, String content, char[] password) {
 
+        validatePassword(password);
         if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
             return Completable.error(new IllegalArgumentException("Title/content cannot be empty"));
         }
 
-        Log.d(TAG, "Attempting to add note: " + title);
-
-        KeyGenerator generator = new KeyGeneratorImpl();
-        generator.generateSalt();
-        final byte[] salt = generator.generateSalt();
-        SecretKey secretKey = null;
-
-        try {
-            secretKey = generator.generateDataKey(password, salt);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        SecretKey finalSecretKey = secretKey;
         return Completable.fromAction(() -> {
                     try {
-                        Log.d(TAG, "start: " + title);
-                        String encryptedTitle = cryptoHelper.encrypt(title, finalSecretKey);
-                        String encryptedContent = cryptoHelper.encrypt(content, finalSecretKey);
-                        Log.d(TAG, "Encryption successful");
-                        Note note = new Note(encryptedTitle, encryptedContent, System.currentTimeMillis());
+                        Note note = new Note(title, content, System.currentTimeMillis());
+                        KeyGenerator generator = new KeyGeneratorImpl();
+                        byte[] salt = generator.generateSalt();
                         note.setSalt(Base64.getEncoder().encodeToString(salt));
-
-                        long id = noteDao.insert(note);
-                        Log.d(TAG, "Note inserted with ID: " + id);
+                        long id = noteDao.insert(encryptionService.encryptNote(note, password));
+                        Log.e(TAG, "Added note id:" + id);
                     } catch (Exception e) {
-                        Log.e(TAG, "Encryption failed:", e);
-                        throw e;
+                        Log.e(TAG, "Encryption failed: " + e.getMessage()); // Без stacktrace
+                        throw new SecurityException("Encryption error");
+                    } finally {
+                        clearPassword(password);
                     }
                 })
                 .subscribeOn(Schedulers.io())
@@ -109,16 +76,17 @@ public class NoteRepository {
     }
 
     public Single<Note> getNoteById(long id, char[] password) {
+        validatePassword(password);
         return Single.fromCallable(() -> {
-            Note note = noteDao.getById(id);
-            if (note != null) {
-                byte[] salt = Base64.getDecoder().decode(note.getSalt());
-                KeyGenerator generator = new KeyGeneratorImpl();
-                SecretKey key = generator.generateDataKey(password, salt);
-                note.setTitle(cryptoHelper.decrypt(note.getTitle(), key));
-                note.setContent(cryptoHelper.decrypt(note.getContent(), key));
+            try {
+                Note note = noteDao.getById(id);
+                if (note == null)
+                    return null;
+                note = encryptionService.decryptNote(note, password);
+                return note;
+            } finally {
+                clearPassword(password);
             }
-            return note;
         }).subscribeOn(Schedulers.io());
     }
 
@@ -126,7 +94,6 @@ public class NoteRepository {
 
         return Completable.fromAction(() -> {
                     try {
-                        Log.d(TAG, "start...");
                         int deletedCount = noteDao.delete(id);
                         if (deletedCount == 0) {
                             Log.w(TAG, "No note found with ID: " + id);
@@ -142,79 +109,22 @@ public class NoteRepository {
                 .doOnError(e -> Log.e(TAG, "Error in deleteNote", e));
     }
 
-    public Completable updateNote(Note note, char[] password) {
-        if (note == null || TextUtils.isEmpty(note.getTitle()) || TextUtils.isEmpty(note.getContent())) {
-            return Completable.error(new IllegalArgumentException("Note data is invalid"));
-        }
-
-        if (true)
-            throw new NotImplementedError();
-
-        return Completable.fromAction(() -> {
-                    try {
-                        KeyGenerator generator = new KeyGeneratorImpl();
-                        if (note.getSalt() == null)
-                            throw new NotImplementedError();
-                        byte[] salt = Base64.getDecoder().decode(note.getSalt());
-                        SecretKey key = generator.generateDataKey(password, salt);
-
-                        // Шифруем данные перед сохранением
-                        String encryptedTitle = cryptoHelper.encrypt(note.getTitle(), key);
-                        String encryptedContent = cryptoHelper.encrypt(note.getContent(), key);
-
-                        // Создаем новую заметку с зашифрованными данными, но тем же ID
-                        Note encryptedNote = new Note(
-                                note.getId(),
-                                encryptedTitle,
-                                encryptedContent,
-                                note.getCreatedAt(),
-                                note.getSalt()
-                        );
-
-                        noteDao.update(encryptedNote);
-                        Log.d(TAG, "Note updated with ID: " + note.getId());
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error updating note", e);
-                        throw new SecurityException("Failed to encrypt note data", e);
-                    }
-                })
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error updating note", e));
-    }
-
-    /**
-     * Обновляет только заголовок и содержимое заметки
-     * @param id ID заметки для обновления
-     * @param title Новый заголовок
-     * @param content Новое содержимое
-     * @return Completable для отслеживания операции
-     */
     public Completable updateNote(long id, String title, String content, char[] password) {
+        validatePassword(password);
         if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
         return Completable.fromAction(() -> {
                     try {
-                        System.out.println("Get existing note with id: " + id + "...");
                         Note existingNote = noteDao.getById(id);
                         if (existingNote == null) {
                             throw new IllegalArgumentException("Note with ID " + id + " not found");
                         }
+                        existingNote.setTitle(title);
+                        existingNote.setContent(content);
+                        existingNote = encryptionService.encryptNote(existingNote, password);
 
-                        KeyGenerator generator = new KeyGeneratorImpl();
-                        byte[] salt = Base64.getDecoder().decode(existingNote.getSalt());
-                        SecretKey key = generator.generateDataKey(password, salt);
-
-                        // Шифруем новые данные
-                        String encryptedTitle = cryptoHelper.encrypt(title, key);
-                        String encryptedContent = cryptoHelper.encrypt(content, key);
-
-                        // Обновляем только необходимые поля
-                        existingNote.setTitle(encryptedTitle);
-                        existingNote.setContent(encryptedContent);
-
-                        // Сохраняем изменения
                         noteDao.update(existingNote);
                         Log.d(TAG, "Note title and content updated for ID: " + id);
                     } catch (UserNotAuthenticatedException e) {
@@ -223,9 +133,22 @@ public class NoteRepository {
                     } catch (Exception e) {
                         Log.e(TAG, "Error updating note title and content", e);
                         throw new SecurityException("Failed to update note", e);
+                    } finally {
+                        clearPassword(password);
                     }
                 })
                 .subscribeOn(Schedulers.io())
                 .doOnError(e -> Log.e(TAG, "Error updating note title and content", e));
+    }
+
+    private void validatePassword(char[] password) throws IllegalArgumentException {
+        if (password == null || password.length == 0) {
+            throw new IllegalArgumentException("Password cannot be empty");
+        }
+    }
+
+    private void clearPassword(char[] password) {
+        Arrays.fill(password, '\0');
+        Log.e(TAG, "password was cleared");
     }
 }

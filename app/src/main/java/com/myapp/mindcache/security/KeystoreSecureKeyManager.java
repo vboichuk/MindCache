@@ -9,10 +9,9 @@ import javax.crypto.SecretKey;
 
 import java.security.KeyStore;
 
-public class KeystoreSecureKeyManager implements SecureKeyManager {
+public class KeystoreSecureKeyManager {
 
-    private static final String TAG = KeystoreSecureKeyManager.class.getSimpleName();
-    private static final String keyAlias = "secure_db_key";
+    private static final String TAG = "KeystoreSecureKeyManager";
     private static final String KEY_STORE = "AndroidKeyStore";
 
     private final KeyStore keyStore;
@@ -22,17 +21,16 @@ public class KeystoreSecureKeyManager implements SecureKeyManager {
         this.keyStore.load(null);
     }
 
-    @Override
-    public SecretKey getOrCreateKey() throws Exception {
-        Log.i(TAG, "SecretKey getOrCreateKey()");
+    public SecretKey getOrCreateKey(String keyAlias) throws Exception {
+        Log.i(TAG, "getOrCreateKey()");
 
         if (!keyStore.containsAlias(keyAlias)) {
-            createKey();
+            createKey(keyAlias);
         }
         return (SecretKey) keyStore.getKey(keyAlias, null);
     }
 
-    private void createKey() throws Exception {
+    private void createKey(String keyAlias) throws Exception {
         KeyGenerator keyGenerator = KeyGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES,
                 KEY_STORE
@@ -46,7 +44,7 @@ public class KeystoreSecureKeyManager implements SecureKeyManager {
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
                 .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(30)
+                .setUserAuthenticationValidityDurationSeconds(600)
                 // .setIsStrongBoxBacked(true) // Только для устройств с StrongBox
                 .build();
 
