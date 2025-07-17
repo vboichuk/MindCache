@@ -5,9 +5,6 @@ import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -21,6 +18,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
+import com.google.android.material.appbar.MaterialToolbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
 import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
@@ -48,12 +46,6 @@ public class NoteDetailFragment extends Fragment {
     private EditText editTextContent;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-    }
-
-    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_note_detail, container, false);
 
@@ -72,6 +64,7 @@ public class NoteDetailFragment extends Fragment {
 
         editTextTitle = view.findViewById(R.id.note_title);
         editTextContent = view.findViewById(R.id.note_content);
+        // saveNoteButton = view.findViewById(R.id.button_save_note);
 
         return view;
     }
@@ -90,26 +83,20 @@ public class NoteDetailFragment extends Fragment {
         }
     }
 
-    private void setupEmptyNote() {
-    }
-
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-//        // Настройка Toolbar
-//        Toolbar toolbar = view.findViewById(R.id.toolbar);
-//        ((AppCompatActivity) requireActivity()).setSupportActionBar(toolbar);
-//
-//        // Добавляем кнопку назад
-//        ActionBar supportActionBar = ((AppCompatActivity) requireActivity()).getSupportActionBar();
-//        if (supportActionBar != null) {
-//            supportActionBar.setDisplayHomeAsUpEnabled(true);
-//            supportActionBar.setDisplayShowHomeEnabled(true);
-//            supportActionBar.setDisplayShowTitleEnabled(false);
-//        }
-//
-//        toolbar.setNavigationOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
+        // Получаем Toolbar из разметки фрагмента
+        MaterialToolbar toolbar = view.findViewById(R.id.note_details_toolbar);
+
+        toolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.action_save) {
+                saveNote();
+                return true;
+            }
+            return false;
+        });
     }
 
     private void loadNoteData(long noteId) {
@@ -123,6 +110,9 @@ public class NoteDetailFragment extends Fragment {
         });
     }
 
+    private void setupEmptyNote() {
+    }
+
     private void displayNote(Note note) {
         View view = getView();
         if (view == null) return;
@@ -133,26 +123,13 @@ public class NoteDetailFragment extends Fragment {
         TextView dateView = view.findViewById(R.id.note_date);
         dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.getCreatedAt())));
     }
-
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.note_toolbar_menu, menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_save) {
-            saveNote();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
+    
     private void saveNote() {
         String title = editTextTitle.getText().toString();
         String content = editTextContent.getText().toString();
 
         if (noteId > 0) {
+            //noinspection unused
             Disposable subscribe = viewModel.updateNote(noteId, title, content)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
