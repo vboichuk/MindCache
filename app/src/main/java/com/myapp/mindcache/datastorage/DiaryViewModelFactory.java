@@ -11,9 +11,9 @@ public class DiaryViewModelFactory implements ViewModelProvider.Factory {
     private final Application application;
     private final PasswordManager passwordManager;
 
-    public DiaryViewModelFactory(Application repository, PasswordManager secondArg) {
+    public DiaryViewModelFactory(Application repository, PasswordManager passwordManager) {
         this.application = repository;
-        this.passwordManager = secondArg;
+        this.passwordManager = passwordManager;
     }
 
     @Override

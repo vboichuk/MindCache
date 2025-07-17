@@ -12,9 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.LifecycleEventObserver;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
@@ -29,7 +27,7 @@ import com.myapp.mindcache.databinding.FragmentDiaryBinding;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
 import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
 import com.myapp.mindcache.model.FeedItem;
-import com.myapp.mindcache.security.KeystoreSecureKeyManager;
+import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
 
@@ -86,12 +84,12 @@ public class DiaryFragment extends Fragment {
 
     private void initViewModel() {
         Log.d(TAG, "initViewModel");
-        KeystoreSecureKeyManager secureKeyManager = null;
+        AndroidKeystoreKeyManager keystoreKeyManager;
         try {
-            secureKeyManager = new KeystoreSecureKeyManager();
-            PasswordManager passwordManager = new PasswordManagerImpl(secureKeyManager);
             Activity activity = this.getActivity();
             assert activity != null;
+            keystoreKeyManager = new AndroidKeystoreKeyManager();
+            PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), keystoreKeyManager);
             DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
             viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
         } catch (Exception e) {

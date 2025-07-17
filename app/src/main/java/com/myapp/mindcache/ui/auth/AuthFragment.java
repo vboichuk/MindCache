@@ -1,11 +1,15 @@
 package com.myapp.mindcache.ui.auth;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -17,48 +21,82 @@ import androidx.navigation.Navigation;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
+import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
+import com.myapp.mindcache.security.PasswordManager;
+import com.myapp.mindcache.security.PasswordManagerImpl;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 public class AuthFragment extends Fragment {
 
+    private static final String TAG = "AuthFragment";
     private Button btnLogin;
+    private EditText editPassword;
+    private LinearLayout passwordLayout;
+
     private ProgressBar progressBar;
     private final Executor executor = Executors.newSingleThreadExecutor();
+
+    private PasswordManager passwordManager;
+
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_auth, container, false);
+        try {
+            AndroidKeystoreKeyManager secureKeyManager = new AndroidKeystoreKeyManager();
+            passwordManager = new PasswordManagerImpl(getContext(), secureKeyManager);
+            boolean passwordSet = passwordManager.isPasswordSet();
+            Log.i(TAG, passwordSet ? "password is set" : "password is NOT set");
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        View view = inflater.inflate(R.layout.fragment_auth, container, false);
+
+        // Настройка Toolbar
+        // Toolbar toolbar = view.findViewById(R.id.toolbar);
+        // ((AppCompatActivity)requireActivity()).getSupportActionBar().hide();
+
+        return view;
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        btnLogin = view.findViewById(R.id.btn_login);
+        btnLogin = view.findViewById(R.id.btn_auth);
         progressBar = view.findViewById(R.id.progress_bar);
+        editPassword = view.findViewById(R.id.edittext_password);
+        passwordLayout = view.findViewById(R.id.input_password_layout);
 
-        btnLogin.setOnClickListener(v -> {
-            // Показываем прогресс бар
-            // btnLogin.setVisibility(View.INVISIBLE);
-            // progressBar.setVisibility(View.VISIBLE);
+        btnLogin.setOnClickListener(v -> onLoginClick());
+        passwordLayout.setVisibility(passwordManager.isPasswordSet() ? View.GONE : View.VISIBLE);
+    }
 
+    private void onLoginClick() {
+
+        boolean passwordSet = passwordManager.isPasswordSet();
+
+        if (passwordSet) {
             showBiometricPrompt();
-
-//            new Handler(Looper.getMainLooper()).postDelayed(() -> {  }, 1500);
-        });
+        } else {
+            if (editPassword.getText().length() >= 4) {
+                showBiometricPrompt();
+            } else {
+                Toast.makeText(getContext(), "Password too short", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void showBiometricPrompt() {
-
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Вход в приложение")
-                .setSubtitle("Приложите палец к сканеру")
                 .setAllowedAuthenticators(
                         BiometricManager.Authenticators.BIOMETRIC_WEAK |
-                                BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                 .build();
 
         BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
@@ -91,6 +129,13 @@ public class AuthFragment extends Fragment {
         }
 
     private void onAuthSuccess() {
+        boolean isPasswordSet = passwordManager.isPasswordSet();
+
+        if (!isPasswordSet) {
+            passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
+        }
+        String userPassword = passwordManager.getUserPassword();
+        Log.d(TAG, "userPassword: [" + userPassword + "]");
         getActivity().runOnUiThread(this::navigateToDiary);
     }
 

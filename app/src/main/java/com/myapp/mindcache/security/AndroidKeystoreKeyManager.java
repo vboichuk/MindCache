@@ -9,14 +9,14 @@ import javax.crypto.SecretKey;
 
 import java.security.KeyStore;
 
-public class KeystoreSecureKeyManager {
+public class AndroidKeystoreKeyManager {
 
-    private static final String TAG = "KeystoreSecureKeyManager";
+    private static final String TAG = "AndroidKeystoreKeyManager";
     private static final String KEY_STORE = "AndroidKeyStore";
 
     private final KeyStore keyStore;
 
-    public KeystoreSecureKeyManager() throws Exception {
+    public AndroidKeystoreKeyManager() throws Exception {
         this.keyStore = KeyStore.getInstance("AndroidKeyStore");
         this.keyStore.load(null);
     }

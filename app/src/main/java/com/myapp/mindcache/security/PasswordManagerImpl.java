@@ -1,31 +1,69 @@
 package com.myapp.mindcache.security;
 
 
-import android.util.Log;
+import android.content.Context;
+import android.content.SharedPreferences;
 
 import javax.crypto.SecretKey;
 
 public class PasswordManagerImpl implements PasswordManager {
     private static final String TAG = "PasswordManagerImpl";
     private static final String keyAlias = "user_password_key";
+    private final Context context;
 
-    final KeystoreSecureKeyManager secureKeyManager;
+    private final AndroidKeystoreKeyManager keystoreKeyManager;
 
-    public PasswordManagerImpl(KeystoreSecureKeyManager manager) {
-        this.secureKeyManager = manager;
+    public PasswordManagerImpl(Context context, AndroidKeystoreKeyManager keystoreKeyManager) {
+        this.context = context;
+        this.keystoreKeyManager = keystoreKeyManager;
     }
 
     @Override
-    public char[] getUserPassword() {
-        final String crypted = "Xy9B4iiTPIxx5mpP2a44NLgnRv3NO5s9b5lyjguWI1cE4Ktb";
+    public String getUserPassword() {
+        String encryptedPassword = loadEncryptedPassword();
+        CryptoHelper helper = new CryptoHelper();
         try {
-            SecretKey secretKey = secureKeyManager.getOrCreateKey(keyAlias);
-            CryptoHelper helper = new CryptoHelper();
-            String decrypted = helper.decrypt(crypted, secretKey);
-            Log.d(TAG, "decrypted: [" + decrypted + "]");
-            return decrypted.toCharArray();
+            SecretKey secretKey = keystoreKeyManager.getOrCreateKey(keyAlias);
+            return helper.decrypt(encryptedPassword, secretKey);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void setUserPassword(char[] password) {
+        validatePassword(password);
+        CryptoHelper helper = new CryptoHelper();
+        try {
+            SecretKey secretKey = keystoreKeyManager.getOrCreateKey(keyAlias);
+            String encrypted = helper.encrypt(new String(password), secretKey);
+            saveEncryptedPassword(encrypted);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void validatePassword(char[] password) {
+
+    }
+
+    @Override
+    public boolean isPasswordSet() {
+        String bytes = loadEncryptedPassword();
+        return bytes != null;
+    }
+
+
+    private String loadEncryptedPassword() {
+        SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+        return prefs.getString(keyAlias, null);
+    }
+
+    private void saveEncryptedPassword(String password) {
+        SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+        prefs
+                .edit()
+                .putString(keyAlias, password)
+                .apply();
     }
 }

@@ -60,7 +60,7 @@ public class DiaryViewModel extends AndroidViewModel {
 
     public LiveData<Note> getNoteById(long noteId) {
         MutableLiveData<Note> result = new MutableLiveData<>();
-        char[] password = passwordManager.getUserPassword();
+        char[] password = passwordManager.getUserPassword().toCharArray();
         disposables.add(repository.getNoteById(noteId, password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -93,7 +93,7 @@ public class DiaryViewModel extends AndroidViewModel {
             return;
         }
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword();
+        char[] password = passwordManager.getUserPassword().toCharArray();
         disposables.add(repository.getAllNotes(password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -116,7 +116,7 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword();
+        char[] password = passwordManager.getUserPassword().toCharArray();
 
         Note newNote = new Note(title, content, System.currentTimeMillis());
 
@@ -150,7 +150,7 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword();
+        char[] password = passwordManager.getUserPassword().toCharArray();
 
         return repository.updateNote(id, title, content, password)
                 .doOnComplete(() -> {

@@ -17,6 +17,7 @@
     <string name="hint_content">Note</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
-    <string name="menu_auth">Authenticate</string>
+    <string name="menu_auth">Login</string>
     <string name="auth_successful">Auth success</string>
+    <string name="input_password">Input your password</string>
 </resources>

@@ -25,7 +25,7 @@ import com.myapp.mindcache.R;
 import com.myapp.mindcache.datastorage.DiaryViewModel;
 import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
 import com.myapp.mindcache.model.Note;
-import com.myapp.mindcache.security.KeystoreSecureKeyManager;
+import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
 
@@ -46,18 +46,6 @@ public class NoteDetailFragment extends Fragment {
 
     private EditText editTextTitle;
     private EditText editTextContent;
-
-    public static NoteDetailFragment newInstance(long noteId) {
-        NoteDetailFragment fragment = new NoteDetailFragment();
-        Bundle args = new Bundle();
-        args.putLong(ARG_NOTE_ID, noteId);
-        fragment.setArguments(args);
-        return fragment;
-    }
-
-    public static NoteDetailFragment newInstance() {
-        return new NoteDetailFragment();
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -89,12 +77,12 @@ public class NoteDetailFragment extends Fragment {
     }
 
     private void initViewModel() {
-        KeystoreSecureKeyManager secureKeyManager = null;
+        AndroidKeystoreKeyManager secureKeyManager = null;
         try {
-            secureKeyManager = new KeystoreSecureKeyManager();
-            PasswordManager passwordManager = new PasswordManagerImpl(secureKeyManager);
             Activity activity = this.getActivity();
             assert activity != null;
+            secureKeyManager = new AndroidKeystoreKeyManager();
+            PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), secureKeyManager);
             DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
             viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
         } catch (Exception e) {
