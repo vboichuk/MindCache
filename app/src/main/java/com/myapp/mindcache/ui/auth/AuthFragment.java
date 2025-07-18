@@ -8,7 +8,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -35,32 +34,22 @@ public class AuthFragment extends Fragment {
     private EditText editPassword;
     private LinearLayout passwordLayout;
 
-    private ProgressBar progressBar;
     private final Executor executor = Executors.newSingleThreadExecutor();
 
     private PasswordManager passwordManager;
 
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
         try {
             AndroidKeystoreKeyManager secureKeyManager = new AndroidKeystoreKeyManager();
             passwordManager = new PasswordManagerImpl(getContext(), secureKeyManager);
-            boolean passwordSet = passwordManager.isPasswordSet();
-            Log.i(TAG, passwordSet ? "password is set" : "password is NOT set");
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        View view = inflater.inflate(R.layout.fragment_auth, container, false);
-
-        // Настройка Toolbar
-        // Toolbar toolbar = view.findViewById(R.id.toolbar);
-        // ((AppCompatActivity)requireActivity()).getSupportActionBar().hide();
-
-        return view;
+        return inflater.inflate(R.layout.fragment_auth, container, false);
     }
 
     @Override
@@ -68,7 +57,6 @@ public class AuthFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         btnLogin = view.findViewById(R.id.btn_auth);
-        progressBar = view.findViewById(R.id.progress_bar);
         editPassword = view.findViewById(R.id.edittext_password);
         passwordLayout = view.findViewById(R.id.input_password_layout);
 
@@ -76,30 +64,39 @@ public class AuthFragment extends Fragment {
         passwordLayout.setVisibility(passwordManager.isPasswordSet() ? View.GONE : View.VISIBLE);
     }
 
-    private void onLoginClick() {
-
+    @Override
+    public void onStart() {
+        super.onStart();
         boolean passwordSet = passwordManager.isPasswordSet();
+        Log.i(TAG, passwordSet ? "password is set" : "password is NOT set");
 
         if (passwordSet) {
             showBiometricPrompt();
-        } else {
-            if (editPassword.getText().length() >= 4) {
-                showBiometricPrompt();
-            } else {
-                Toast.makeText(getContext(), "Password too short", Toast.LENGTH_SHORT).show();
-            }
         }
     }
 
+    private void onLoginClick() {
+        if (editPassword.getText().length() < 4) {
+            Toast.makeText(getContext(), "Password too short", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        showBiometricPrompt();
+    }
+
+
     private void showBiometricPrompt() {
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Вход в приложение")
+                .setTitle(getString(R.string.login_into_app))
                 .setAllowedAuthenticators(
                         BiometricManager.Authenticators.BIOMETRIC_WEAK |
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                 .build();
 
-        BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
+        BiometricPrompt biometricPrompt = new BiometricPrompt(
+                this,
+                executor,
+                new BiometricPrompt.AuthenticationCallback() {
             @Override
             public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
@@ -134,6 +131,7 @@ public class AuthFragment extends Fragment {
         if (!isPasswordSet) {
             passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
         }
+
         String userPassword = passwordManager.getUserPassword();
         Log.d(TAG, "userPassword: [" + userPassword + "]");
         getActivity().runOnUiThread(this::navigateToDiary);

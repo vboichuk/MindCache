@@ -9,7 +9,6 @@
     android:padding="24dp"
     tools:context="ui.auth.AuthFragment">
 
-    <!-- Логотип приложения (опционально) -->
     <ImageView
         android:layout_gravity="center"
         android:id="@+id/logo"
@@ -45,35 +44,25 @@
             android:inputType="textPassword"
             android:textSize="26sp" />
 
-    </LinearLayout>
-    <!-- Кнопка авторизации -->
-    <Button
-        android:id="@+id/btn_auth"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/menu_auth"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:backgroundTint="@color/design_default_color_primary"
-        app:cornerRadius="8dp"
-        app:iconGravity="start"
-        app:iconPadding="8dp"
-        app:iconTint="@color/white"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/logo" />
+        <!-- Кнопка авторизации -->
+        <Button
+            android:id="@+id/btn_auth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/menu_auth"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            app:backgroundTint="@color/design_default_color_primary"
+            app:cornerRadius="8dp"
+            app:iconGravity="start"
+            app:iconPadding="8dp"
+            app:iconTint="@color/white"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/logo" />
 
-    <!-- Прогресс бар (для отображения при загрузке) -->
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/btn_auth"
-        app:layout_constraintEnd_toEndOf="@+id/btn_auth"
-        app:layout_constraintStart_toStartOf="@+id/btn_auth"
-        app:layout_constraintTop_toTopOf="@+id/btn_auth" />
+    </LinearLayout>
 
 </LinearLayout>
