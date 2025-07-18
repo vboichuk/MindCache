@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#9A50F6</color>
+    <color name="blue1">#52A6DE</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
@@ -9,5 +9,8 @@
     <color name="white">#FFFFFFFF</color>
 
     <color name="color_text">#000000</color>
-    <color name="color_text_date">#262626</color>
+    <color name="color_text_date">#5580ED</color>
+    <color name="card_color">#F1EED5</color>
+    <color name="card_border_color">#E4E1C7</color>
+    <color name="blue2">#2D3C92</color>
 </resources>

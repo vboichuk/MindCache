@@ -12,7 +12,10 @@
         android:label="AuthFragment">
         <action
             android:id="@+id/action_auth_to_diary"
-            app:destination="@id/nav_diary" />
+            app:destination="@id/nav_diary"
+            app:popUpTo="@id/nav_auth"
+            app:popUpToInclusive="true"
+            />
     </fragment>
 
     <fragment

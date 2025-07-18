@@ -12,7 +12,6 @@ import com.myapp.mindcache.R;
 import com.myapp.mindcache.model.FeedItem;
 
 import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,8 +19,11 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     private List<FeedItem> items;
     private final OnItemClickListener clickListener;
     private final OnItemLongClickListener longClickListener;
-    private final DateTimeFormatter formatter =
-            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.getDefault());
+
+    private final DateTimeFormatter formatterDay =
+            DateTimeFormatter.ofPattern("dd", Locale.getDefault());
+    private final DateTimeFormatter formatterMon =
+            DateTimeFormatter.ofPattern("MMMM", Locale.getDefault());
 
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
@@ -37,11 +39,12 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvDate, tvEmoji, tvTitle, tvContent;
+        TextView tvDateDay, tvDateMon, tvEmoji, tvTitle, tvContent;
 
         public ViewHolder(View itemView) {
             super(itemView);
-            tvDate = itemView.findViewById(R.id.tvDate);
+            tvDateDay = itemView.findViewById(R.id.tvDateDay);
+            tvDateMon = itemView.findViewById(R.id.tvDateMon);
             tvEmoji = itemView.findViewById(R.id.tvEmoji);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvContent = itemView.findViewById(R.id.tvContent);
@@ -68,7 +71,9 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     public void onBindViewHolder(ViewHolder holder, int position) {
         FeedItem note = items.get(position);
 
-        holder.tvDate.setText(note.getDateTime().format(formatter));
+        holder.tvDateDay.setText(note.getDateTime().format(formatterDay));
+        holder.tvDateMon.setText(note.getDateTime().format(formatterMon));
+
         holder.tvEmoji.setText(note.getEmoji());
         holder.tvTitle.setText(note.getTitle());
         holder.tvContent.setText(note.getContent());

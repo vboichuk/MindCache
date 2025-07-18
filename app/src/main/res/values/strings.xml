@@ -21,4 +21,6 @@
     <string name="auth_successful">Auth success</string>
     <string name="input_password">Input your password</string>
     <string name="login_into_app">Login into app</string>
+    <string name="confirm_delete_note">Confirm deleting a note</string>
+    <string name="ask_delete_note">Delete note</string>
 </resources>

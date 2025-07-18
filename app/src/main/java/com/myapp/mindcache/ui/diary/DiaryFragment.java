@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -150,26 +151,32 @@ public class DiaryFragment extends Fragment {
     }
 
     private void showBottomSheet(FeedItem feedItem) {
-        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this.getContext());
+        BottomSheetDialog dialog = new BottomSheetDialog(this.getContext());
 
-        // Настройка элементов как в примере выше
+        if (dialog.getWindow() != null) {
+            // dialog.getWindow().setGravity(Gravity.BOTTOM);
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            // dialog.setCancelable(false);
+        }
+
         View sheetLayoutView = getLayoutInflater().inflate(R.layout.bottom_sheet_layout, null);
         Button btnDelete = sheetLayoutView.findViewById(R.id.btnDelete);
         btnDelete.setOnClickListener(v -> {
             showDeleteNoteDialog(feedItem);
-            bottomSheetDialog.dismiss();
+            dialog.dismiss();
         });
 
-        bottomSheetDialog.setContentView(sheetLayoutView);
-        bottomSheetDialog.show();
+        dialog.setContentView(sheetLayoutView);
+        dialog.show();
     }
 
     private void showDeleteNoteDialog(FeedItem note) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this.getContext());
-        builder.setTitle("Подтверждение удаления");
-        builder.setMessage("Delete note '" + note.getTitle() + "'?" );
+        builder.setTitle(R.string.confirm_delete_note);
+        builder.setMessage(getString(R.string.ask_delete_note) + " \"" + note.getTitle() + "\"?" );
 
-        builder.setPositiveButton("Delete", (dialog, which) -> {
+        builder.setPositiveButton(R.string.delete, (dialog, which) -> {
             // Действие при подтверждении удаления
             deleteNote(note.getId());
         });

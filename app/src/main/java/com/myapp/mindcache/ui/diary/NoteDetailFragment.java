@@ -27,8 +27,11 @@ import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
 
-import java.text.DateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -42,8 +45,12 @@ public class NoteDetailFragment extends Fragment {
     private DiaryViewModel viewModel;
     private Long noteId = 0L;
 
+    private TextView textDate;
     private EditText editTextTitle;
     private EditText editTextContent;
+
+    private final DateTimeFormatter dateTimeFormatter =
+            DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -64,23 +71,9 @@ public class NoteDetailFragment extends Fragment {
 
         editTextTitle = view.findViewById(R.id.note_title);
         editTextContent = view.findViewById(R.id.note_content);
-        // saveNoteButton = view.findViewById(R.id.button_save_note);
+        textDate = view.findViewById(R.id.note_date);
 
         return view;
-    }
-
-    private void initViewModel() {
-        AndroidKeystoreKeyManager secureKeyManager = null;
-        try {
-            Activity activity = this.getActivity();
-            assert activity != null;
-            secureKeyManager = new AndroidKeystoreKeyManager();
-            PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), secureKeyManager);
-            DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
-            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -99,6 +92,21 @@ public class NoteDetailFragment extends Fragment {
         });
     }
 
+
+    private void initViewModel() {
+        AndroidKeystoreKeyManager secureKeyManager = null;
+        try {
+            Activity activity = this.getActivity();
+            assert activity != null;
+            secureKeyManager = new AndroidKeystoreKeyManager();
+            PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), secureKeyManager);
+            DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
+            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void loadNoteData(long noteId) {
         viewModel.getNoteById(noteId).observe(getViewLifecycleOwner(), note -> {
             if (note != null) {
@@ -115,13 +123,17 @@ public class NoteDetailFragment extends Fragment {
 
     private void displayNote(Note note) {
         View view = getView();
-        if (view == null) return;
+        if (view == null)
+            return;
 
         editTextTitle.setText(note.getTitle());
         editTextContent.setText(note.getContent());
 
-        TextView dateView = view.findViewById(R.id.note_date);
-        dateView.setText(DateFormat.getDateTimeInstance().format(new Date(note.getCreatedAt())));
+        LocalDateTime dateTime = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(note.getCreatedAt()),
+                ZoneId.systemDefault());
+
+        textDate.setText(dateTime.format(dateTimeFormatter));
     }
     
     private void saveNote() {
