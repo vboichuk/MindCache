@@ -1,5 +1,6 @@
 package com.myapp.mindcache.datastorage;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
@@ -22,7 +23,7 @@ public interface NoteDao {
     void update(Note note);
 
     @Query("SELECT COUNT(*) FROM notes")
-    Flowable<Integer> getCount();
+    LiveData<Integer> getCount();
 
     @Query("SELECT * FROM notes ORDER BY created_at DESC")
     Single<List<Note>> getAllNotes();

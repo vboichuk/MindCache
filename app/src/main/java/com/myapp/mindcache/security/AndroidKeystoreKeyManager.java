@@ -8,6 +8,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 
 public class AndroidKeystoreKeyManager {
 
@@ -50,5 +51,13 @@ public class AndroidKeystoreKeyManager {
 
         keyGenerator.init(keySpec);
         keyGenerator.generateKey();
+    }
+
+    public void removeKey(String keyAlias) {
+        try {
+            this.keyStore.deleteEntry(keyAlias);
+        } catch (KeyStoreException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

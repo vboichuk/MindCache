@@ -5,6 +5,8 @@ import android.security.keystore.UserNotAuthenticatedException;
 import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.lifecycle.LiveData;
+
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
@@ -15,10 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
-import javax.crypto.AEADBadTagException;
-
 import io.reactivex.Completable;
-import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
 
@@ -155,5 +154,9 @@ public class NoteRepository {
     private void clearPassword(char[] password) {
         Arrays.fill(password, '\0');
         Log.i(TAG, "password was cleared");
+    }
+
+    public LiveData<Integer> getNotesCount() {
+        return noteDao.getCount();
     }
 }

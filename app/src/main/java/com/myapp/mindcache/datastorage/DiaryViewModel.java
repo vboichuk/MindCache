@@ -18,11 +18,13 @@ import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
 import com.myapp.mindcache.security.PasswordManager;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import javax.crypto.AEADBadTagException;
+
 import io.reactivex.Completable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -54,13 +56,22 @@ public class DiaryViewModel extends AndroidViewModel {
         }
     }
 
+    public LiveData<Integer> getNotesCount() {
+        return repository.getNotesCount();
+    }
+
     public LiveData<List<FeedItem>> getFeedItems() {
         return notes;
     }
 
     public LiveData<Note> getNoteById(long noteId) {
         MutableLiveData<Note> result = new MutableLiveData<>();
-        char[] password = passwordManager.getUserPassword().toCharArray();
+        char[] password = null;
+        try {
+            password = passwordManager.getUserPassword().toCharArray();
+        } catch (AEADBadTagException e) {
+            e.printStackTrace();
+        }
         disposables.add(repository.getNoteById(noteId, password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -93,7 +104,12 @@ public class DiaryViewModel extends AndroidViewModel {
             return;
         }
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword().toCharArray();
+        char[] password = null;
+        try {
+            password = passwordManager.getUserPassword().toCharArray();
+        } catch (AEADBadTagException e) {
+            e.printStackTrace();
+        }
         disposables.add(repository.getAllNotes(password)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -116,10 +132,17 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword().toCharArray();
+        char[] password = null;
+        try {
+            password = passwordManager.getUserPassword().toCharArray();
+        } catch (AEADBadTagException e) {
+            e.printStackTrace();
+            password = "".toCharArray();
+        }
 
         Note newNote = new Note(title, content, System.currentTimeMillis());
 
+        char[] finalPassword = password;
         return repository.insertNote(newNote, password)
                 .doOnSuccess(id -> {
                     Log.i(TAG, "Successfully added note with id: " + id);
@@ -138,8 +161,8 @@ public class DiaryViewModel extends AndroidViewModel {
                 })
                 .doOnDispose(() -> {
                     // Очистка пароля при отмене операции
-                    if (password != null) {
-                        Arrays.fill(password, '\0');
+                    if (finalPassword != null) {
+                        Arrays.fill(finalPassword, '\0');
                     }
                 });
     }
@@ -150,8 +173,14 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        char[] password = passwordManager.getUserPassword().toCharArray();
+        char[] password = null;
+        try {
+            password = passwordManager.getUserPassword().toCharArray();
+        } catch (AEADBadTagException e) {
+            e.printStackTrace();
+        }
 
+        char[] finalPassword = password;
         return repository.updateNote(id, title, content, password)
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
@@ -164,8 +193,8 @@ public class DiaryViewModel extends AndroidViewModel {
                 })
                 .doOnDispose(() -> {
                     // Очистка пароля при отмене операции
-                    if (password != null) {
-                        Arrays.fill(password, '\0');
+                    if (finalPassword != null) {
+                        Arrays.fill(finalPassword, '\0');
                     }
                 });
     }

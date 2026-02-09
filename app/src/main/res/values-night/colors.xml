@@ -10,4 +10,7 @@
 
     <color name="color_text">#E9E9E9</color>
     <color name="color_text_date">#D5D5D5</color>
+
+    <color name="card_bg">#242424</color>
+    <color name="card_border">#414141</color>
 </resources>

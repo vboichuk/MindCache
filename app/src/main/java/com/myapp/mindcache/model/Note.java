@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey;
 
 @Entity(tableName = "notes")
 public class Note {
+
     @PrimaryKey(autoGenerate = true)
     private long id;
 
@@ -16,7 +17,6 @@ public class Note {
     private String title;    // encrypted
     private String content;  // encrypted
     private String salt;     // Base64-соль (null, если заметка не зашифрована)
-
 
     public Note(long id, String title, String content, long createdAt) {
         this.id = id;
@@ -66,6 +66,7 @@ public class Note {
     public String getSalt() {
         return salt;
     }
+
 
     // Сеттеры
     public void setId(long id) {

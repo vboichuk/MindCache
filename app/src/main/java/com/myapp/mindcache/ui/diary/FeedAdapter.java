@@ -11,7 +11,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.model.FeedItem;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -25,6 +27,7 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
     private final DateTimeFormatter formatterMon =
             DateTimeFormatter.ofPattern("MMMM", Locale.getDefault());
 
+
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
     }
@@ -37,6 +40,17 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
         this.items = items;
         notifyDataSetChanged();
     }
+
+    public void updateWithCount(Integer count) {
+        items = new ArrayList<>(count); // Предварительное выделение памяти
+
+        for (int i = 0; i < count; i++) {
+            FeedItem note = new FeedItem(0, "", "", LocalDateTime.now(), ""); // Создание нового объекта
+            items.add(note);
+        }
+        notifyDataSetChanged();
+    }
+
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvDateDay, tvDateMon, tvEmoji, tvTitle, tvContent;

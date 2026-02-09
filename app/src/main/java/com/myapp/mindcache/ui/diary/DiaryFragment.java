@@ -14,7 +14,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.LifecycleEventObserver;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -42,16 +41,35 @@ import io.reactivex.disposables.Disposable;
 public class DiaryFragment extends Fragment {
 
     private static final String TAG = DiaryFragment.class.getSimpleName();
-    private FragmentDiaryBinding binding;
+    private FragmentDiaryBinding fragmentDiaryBinding;
     private RecyclerView recyclerView;
     private DiaryViewModel viewModel;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     public void onCreate(Bundle savedInstance) {
         super.onCreate(savedInstance);
+    }
 
-        getLifecycle().addObserver((LifecycleEventObserver) (source, event)
-                -> Log.i(TAG, "onStateChanged: " + event.name()));
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container, Bundle savedInstanceState) {
+        fragmentDiaryBinding = FragmentDiaryBinding.inflate(inflater, container, false);
+        return fragmentDiaryBinding.getRoot();
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        setupClickListeners();
+        setupRecyclerView();
+        initViewModel();
+        observeViewModel();
+        loadNotes();
+    }
+
+
+    private void setupClickListeners() {
+        fragmentDiaryBinding.addButton.setOnClickListener(v -> this.onAddClick());
     }
 
     @Override
@@ -60,28 +78,30 @@ public class DiaryFragment extends Fragment {
         super.onPause();
     }
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
+    private void observeViewModel() {
+        // Подписываемся на LiveData из ViewModel
+        viewModel.getFeedItems().observe(getViewLifecycleOwner(), this::updateAdapter);
 
-        Log.d(TAG, "onCreateView");
+        viewModel.getErrors().observe(getViewLifecycleOwner(), error -> {
+            if (error != null) {
+                showError(error);
+            }
+        });
 
-        binding = FragmentDiaryBinding.inflate(inflater, container, false);
-        binding.fab.setOnClickListener(view -> this.onAddClick());
-
-        View root = binding.getRoot();
-        recyclerView = root.findViewById(R.id.recyclerView);
-
-        return root;
+        viewModel.getNotesCount().observe(getViewLifecycleOwner(), this::onNotesCountChange);
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
+    private void onNotesCountChange(Integer count) {
+        Toast.makeText(getContext(), "count: " + count, Toast.LENGTH_SHORT).show();
 
-        initViewModel();
-        setupRecyclerView();
-        loadNotes();
+        FeedAdapter adapter = (FeedAdapter) recyclerView.getAdapter();
+        if (adapter != null) {
+            adapter.updateWithCount(count);
+            // binding.emptyView.setVisibility(notes.isEmpty() ? View.VISIBLE : View.GONE);
+        }
     }
+
+
 
     private void initViewModel() {
         Log.d(TAG, "initViewModel");
@@ -96,6 +116,13 @@ public class DiaryFragment extends Fragment {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void loadNotes() {
+        Log.d(TAG, "loadNotes");
+
+        // Инициируем загрузку (если не делаем auto-load в ViewModel)
+        viewModel.loadAllNotes(true);
     }
 
     private void onAddClick() {
@@ -114,21 +141,7 @@ public class DiaryFragment extends Fragment {
         navController.navigate(R.id.action_diary_to_noteDetail, args);
     }
 
-    private void loadNotes() {
-        Log.d(TAG, "loadNotes");
 
-        // Подписываемся на LiveData из ViewModel
-        viewModel.getFeedItems().observe(getViewLifecycleOwner(), this::updateAdapter);
-
-        viewModel.getErrors().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                showError(error);
-            }
-        });
-
-        // Инициируем загрузку (если не делаем auto-load в ViewModel)
-        viewModel.loadAllNotes(true);
-    }
 
     private void updateAdapter(List<FeedItem> notes) {
         Log.d(TAG, "updateAdapter with " + notes.size() + " items");
@@ -140,8 +153,9 @@ public class DiaryFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
+        recyclerView = fragmentDiaryBinding.recyclerView;
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        FeedAdapter adapter = new FeedAdapter(new ArrayList<>(), this::onNoteClick, this::onNoteLongClick);
+        FeedAdapter adapter = new FeedAdapter(new ArrayList<>(0), this::onNoteClick, this::onNoteLongClick);
         recyclerView.setAdapter(adapter);
         recyclerView.setHasFixedSize(true);
     }
@@ -210,7 +224,7 @@ public class DiaryFragment extends Fragment {
     private void showError(Throwable throwable) {
         Log.e(TAG, "Error occurred", throwable);
         if (isAdded()) {
-            Snackbar.make(binding.getRoot(),
+            Snackbar.make(fragmentDiaryBinding.getRoot(),
                             R.string.error_loading_notes,
                             Snackbar.LENGTH_LONG)
                     .setAction(R.string.retry, v -> loadNotes())
@@ -222,6 +236,6 @@ public class DiaryFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         disposables.dispose();
-        binding = null;
+        fragmentDiaryBinding = null;
     }
 }

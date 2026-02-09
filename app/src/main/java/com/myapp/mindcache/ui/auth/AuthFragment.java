@@ -27,6 +27,8 @@ import com.myapp.mindcache.security.PasswordManagerImpl;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import javax.crypto.AEADBadTagException;
+
 public class AuthFragment extends Fragment {
 
     private static final String TAG = "AuthFragment";
@@ -120,10 +122,10 @@ public class AuthFragment extends Fragment {
     }
 
     private void navigateToDiary() {
-            // После успешной проверки учетных данных
-            NavController navController = Navigation.findNavController(requireView());
-            navController.navigate(R.id.action_auth_to_diary);
-        }
+        // После успешной проверки учетных данных
+        NavController navController = Navigation.findNavController(requireView());
+        navController.navigate(R.id.action_auth_to_diary);
+    }
 
     private void onAuthSuccess() {
         boolean isPasswordSet = passwordManager.isPasswordSet();
@@ -132,9 +134,23 @@ public class AuthFragment extends Fragment {
             passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
         }
 
-        String userPassword = passwordManager.getUserPassword();
-        Log.d(TAG, "userPassword: [" + userPassword + "]");
-        getActivity().runOnUiThread(this::navigateToDiary);
+        String userPassword = null;
+        try {
+            userPassword = passwordManager.getUserPassword();
+            Log.d(TAG, "userPassword: [" + userPassword + "]");
+            getActivity().runOnUiThread(this::navigateToDiary);
+        } catch (AEADBadTagException e) {
+            System.out.println("e.getCause() = " + e.getCause());
+            e.printStackTrace();
+            passwordManager.resetPassword();
+            getActivity().runOnUiThread(this::showPasswordPrompt);
+        }
+    }
+
+    private void showPasswordPrompt() {
+
+        System.out.println("AuthFragment.showPasswordPrompt");
+        passwordLayout.setVisibility(View.VISIBLE);
     }
 
     private void onAuthFailed() {

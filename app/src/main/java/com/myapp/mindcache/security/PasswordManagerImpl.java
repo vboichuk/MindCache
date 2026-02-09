@@ -4,6 +4,7 @@ package com.myapp.mindcache.security;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
 
 public class PasswordManagerImpl implements PasswordManager {
@@ -19,14 +20,22 @@ public class PasswordManagerImpl implements PasswordManager {
     }
 
     @Override
-    public String getUserPassword() {
+    public String getUserPassword() throws AEADBadTagException {
         String encryptedPassword = loadEncryptedPassword();
+        System.out.println("encryptedPassword: " + encryptedPassword);
         CryptoHelper helper = new CryptoHelper();
         try {
             SecretKey secretKey = keystoreKeyManager.getOrCreateKey(keyAlias);
-            return helper.decrypt(encryptedPassword, secretKey);
+            String decrypted = helper.decrypt(encryptedPassword, secretKey);
+            // Log.d(TAG, "decrypted: " + decrypted);
+            // pass: 0000
+            return decrypted;
+        } catch (AEADBadTagException e) {
+            System.out.println(e.getMessage());
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            System.out.println(e.getMessage());
+            return "";
         }
     }
 
@@ -51,6 +60,15 @@ public class PasswordManagerImpl implements PasswordManager {
     public boolean isPasswordSet() {
         String bytes = loadEncryptedPassword();
         return bytes != null;
+    }
+
+    @Override
+    public void resetPassword() {
+        SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+        prefs
+                .edit()
+                .remove(keyAlias)
+                .apply();
     }
 
 
