@@ -23,7 +23,7 @@ public class AndroidKeystoreKeyManager {
     }
 
     public SecretKey getOrCreateKey(String keyAlias) throws Exception {
-        Log.i(TAG, "getOrCreateKey()");
+        // Log.i(TAG, "getOrCreateKey()");
 
         if (!keyStore.containsAlias(keyAlias)) {
             createKey(keyAlias);

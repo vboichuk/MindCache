@@ -23,12 +23,13 @@ public class PasswordManagerImpl implements PasswordManager {
     @Override
     public String getUserPassword() throws AEADBadTagException {
         String encryptedPassword = loadEncryptedPassword();
-        System.out.println("encryptedPassword: " + encryptedPassword);
+        // System.out.println("encryptedPassword: " + encryptedPassword);
         CryptoHelper helper = new CryptoHelper();
         try {
             SecretKey secretKey = keystoreKeyManager.getOrCreateKey(keyAlias);
+            //noinspection UnnecessaryLocalVariable
             String decrypted = helper.decrypt(encryptedPassword, secretKey);
-            Log.d(TAG, "decrypted password: " + decrypted);
+            // Log.d(TAG, "decrypted password: " + decrypted);
             // pass: 0000
             return decrypted;
         } catch (AEADBadTagException e) {

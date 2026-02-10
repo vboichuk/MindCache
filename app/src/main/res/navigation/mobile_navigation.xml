@@ -20,7 +20,7 @@
 
     <fragment
         android:id="@+id/nav_diary"
-        android:name="com.myapp.mindcache.ui.diary.DiaryFragment"
+        android:name="com.myapp.mindcache.ui.notes.NoteListFragment"
         android:label="@string/menu_diary"
         tools:layout="@layout/fragment_diary" >
         <!-- Action для перехода на NoteDetailFragment -->
@@ -32,7 +32,7 @@
     <!-- NoteDetailFragment -->
     <fragment
         android:id="@+id/noteDetailFragment"
-        android:name="com.myapp.mindcache.ui.diary.NoteDetailFragment"
+        android:name="com.myapp.mindcache.ui.notes.NoteDetailFragment"
         android:label="Note Detail"
         tools:layout="@layout/fragment_note_detail" >
         <!-- Объявляем аргумент -->

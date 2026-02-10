@@ -1,6 +1,5 @@
-package com.myapp.mindcache.ui.diary;
+package com.myapp.mindcache.ui.notes;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
@@ -19,13 +18,14 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
-import com.myapp.mindcache.datastorage.NotesViewModel;
-import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
+import com.myapp.mindcache.dto.NoteCreateDto;
+import com.myapp.mindcache.dto.NoteUpdateDto;
+import com.myapp.mindcache.viewmodel.NotesViewModel;
+import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.model.Note;
-import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
-import com.myapp.mindcache.security.PasswordManager;
-import com.myapp.mindcache.security.PasswordManagerImpl;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -49,6 +49,7 @@ public class NoteDetailFragment extends Fragment {
     private EditText editTextTitle;
     private EditText editTextContent;
     private MaterialToolbar toolbar;
+    private SwitchMaterial switchSecret;
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
@@ -66,6 +67,7 @@ public class NoteDetailFragment extends Fragment {
         editTextContent = view.findViewById(R.id.note_content);
         textDate = view.findViewById(R.id.note_date);
         toolbar = view.findViewById(R.id.note_details_toolbar);
+        switchSecret = view.findViewById(R.id.switch_secret);
 
         setupClickListeners();
         initViewModel();
@@ -76,9 +78,6 @@ public class NoteDetailFragment extends Fragment {
                 this.noteId = id;
                 loadNoteData(noteId);
             }
-        }
-        else {
-            setupEmptyNote();
         }
     }
 
@@ -94,18 +93,9 @@ public class NoteDetailFragment extends Fragment {
     }
 
     private void initViewModel() {
-        System.out.println("NoteDetailFragment.initViewModel");
-        AndroidKeystoreKeyManager secureKeyManager;
-        try {
-            Activity activity = this.getActivity();
-            assert activity != null;
-            secureKeyManager = new AndroidKeystoreKeyManager();
-            PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), secureKeyManager);
-            DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
-            viewModel = new ViewModelProvider(this, factory).get(NotesViewModel.class);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        MainActivity activity = (MainActivity) requireActivity();
+        NotesViewModelFactory factory = activity.getViewModelFactory();
+        viewModel = new ViewModelProvider(requireActivity(), factory).get(NotesViewModel.class);
     }
 
     private void loadNoteData(long noteId) {
@@ -119,9 +109,6 @@ public class NoteDetailFragment extends Fragment {
         disposables.add(disposable);
     }
 
-    private void setupEmptyNote() {
-    }
-
     private void displayNote(Note note) {
         View view = getView();
         if (view == null)
@@ -129,6 +116,8 @@ public class NoteDetailFragment extends Fragment {
 
         editTextTitle.setText(note.getTitle());
         editTextContent.setText(note.getContent());
+        switchSecret.setChecked(note.isSecret());
+        switchSecret.jumpDrawablesToCurrentState();
 
         LocalDateTime dateTime = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(note.getCreatedAt()),
@@ -140,46 +129,53 @@ public class NoteDetailFragment extends Fragment {
     private void saveNote() {
         String title = editTextTitle.getText().toString();
         String content = editTextContent.getText().toString();
+        boolean isSecret = switchSecret.isChecked();
 
         if (noteId > 0) {
-            //noinspection unused
-            Disposable subscribe = viewModel.updateNote(noteId, title, content)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            () -> {
-                                 Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                 navigateBack();
-                            },
-                            error -> {
-                                if (error instanceof UserNotAuthenticatedException)
-                                    Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
-                                else
-                                    Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
+            updateExistingNote(title, content, isSecret);
         }
         else {
-            // Подписка на Completable из ViewModel
-            disposables.add(
-                    viewModel.addNote(title, content)
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .doOnSubscribe(d -> {})
-                            .doFinally(() -> {})
-                            .subscribe(
-                                    () -> {
-                                        // Успешное добавление
-                                        Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                        navigateBack();
-                                    },
-                                    throwable -> {
-                                        // Обработка ошибок
-                                        Log.e(TAG, "Error adding note", throwable);
-                                        String errorMsg = throwable.getMessage();
-                                        Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show();
-                                    }
-                            )
-            );
+            createNewNote(title, content, isSecret);
         }
+    }
+
+    private void createNewNote(String title, String content, boolean secret) {
+        NoteCreateDto noteCreateDto = new NoteCreateDto(title, content, secret, System.currentTimeMillis());
+        Disposable disposable = viewModel.addNote(noteCreateDto)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> {
+                            Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
+                            navigateBack();
+                        },
+                        throwable -> {
+                            Log.e(TAG, "Error adding note", throwable);
+                            String errorMsg = throwable.getMessage();
+                            Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show();
+                        }
+                );
+        disposables.add(disposable);
+    }
+
+    private void updateExistingNote(String title, String content, boolean isSecret) {
+
+        NoteUpdateDto updateDto = new NoteUpdateDto(noteId, title, content, isSecret);
+
+        Disposable disposable = viewModel.updateNote(updateDto)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> {
+                            Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
+                            navigateBack();
+                        },
+                        error -> {
+                            if (error instanceof UserNotAuthenticatedException)
+                                Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
+                            else
+                                Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+        disposables.add(disposable);
     }
 
     private void navigateBack() {

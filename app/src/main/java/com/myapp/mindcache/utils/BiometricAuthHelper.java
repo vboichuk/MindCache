@@ -1,18 +1,19 @@
-package com.myapp.mindcache.ui.auth;
+package com.myapp.mindcache.utils;
 
 
+import android.app.Activity;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.fragment.app.Fragment;
 
 import com.myapp.mindcache.R;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
 public class BiometricAuthHelper {
 
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private static final String TAG = BiometricAuthHelper.class.getSimpleName();
 
     public interface AuthCallback {
         void onSuccess();
@@ -21,6 +22,27 @@ public class BiometricAuthHelper {
     }
 
     public void authenticate(Fragment fragment, AuthCallback callback) {
+
+        Activity activity = fragment.getActivity();
+        if (activity == null || fragment.isDetached() || !fragment.isAdded()) {
+            Log.w(TAG, "Fragment not attached, skipping authentication");
+            return;
+        }
+
+        // 2. Проверяем доступность биометрии
+        BiometricManager biometricManager = BiometricManager.from(activity);
+        int canAuthenticate = biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK |
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        );
+
+        if (canAuthenticate != BiometricManager.BIOMETRIC_SUCCESS) {
+            callback.onError(
+                    BiometricPrompt.ERROR_HW_UNAVAILABLE,
+                    "Biometric authentication not available"
+            );
+            return;
+        }
 
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle(fragment.getString(R.string.login_into_app))
@@ -31,25 +53,24 @@ public class BiometricAuthHelper {
 
         BiometricPrompt biometricPrompt = new BiometricPrompt(
                 fragment,
-                executor,
                 new BiometricPrompt.AuthenticationCallback() {
                     @Override
-                    public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                         super.onAuthenticationSucceeded(result);
-                        fragment.getActivity().runOnUiThread(callback::onSuccess);
+                        callback.onSuccess();
                     }
 
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
-                        fragment.getActivity().runOnUiThread(callback::onFailure);
+                        callback.onFailure();
                     }
 
                     @Override
                     public void onAuthenticationError(int errorCode, CharSequence errString) {
                         super.onAuthenticationError(errorCode, errString);
-
-                        fragment.getActivity().runOnUiThread(() -> callback.onError(errorCode, String.valueOf(errString)));
+                        String s = String.valueOf(errString);
+                        callback.onError(errorCode, s);
                     }
                 });
 

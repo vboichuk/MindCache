@@ -12,11 +12,13 @@ public class Note {
     private long id;
 
     @ColumnInfo(name = "created_at")
-    private long createdAt = System.currentTimeMillis();
-
+    private final long createdAt;
     private String title;    // encrypted
     private String content;  // encrypted
     private String salt;     // Base64-соль (null, если заметка не зашифрована)
+
+    @Ignore
+    private boolean isSecret;
 
     public Note(long id, String title, String content, long createdAt, String salt) {
         this.id = id;
@@ -24,29 +26,26 @@ public class Note {
         this.content = content;
         this.createdAt = createdAt;
         this.salt = salt;
+        this.isSecret = salt != null;
     }
 
     @Ignore
-    public Note(String title, String content, long createdAt) {
+    public Note(String title, String content, long createdAt, boolean isSecret) {
         this.title = title;
         this.content = content;
         this.createdAt = createdAt;
+        this.isSecret = isSecret;
     }
 
-    public Note(long id, String decryptedTitle, String decryptedContent, long createdAt) {
+    @Ignore
+    public Note(long id, String title, String content, long createdAt, boolean isSecret) {
         this.id = id;
-        this.title = decryptedTitle;
-        this.content = decryptedContent;
+        this.title = title;
+        this.content = content;
         this.createdAt = createdAt;
+        this.isSecret = isSecret;
     }
 
-    public void clearSensitiveData() {
-        content = null;
-        title = null;
-    }
-
-
-    // Геттеры
     public long getId() {
         return id;
     }
@@ -67,18 +66,9 @@ public class Note {
         return salt;
     }
 
-    public boolean isEncrypted() {
-        return salt != null;
-    }
 
-
-    // Сеттеры
     public void setId(long id) {
         this.id = id;
-    }
-
-    public void setCreatedAt(long createdAt) {
-        this.createdAt = createdAt;
     }
 
     public void setTitle(String title) {
@@ -89,7 +79,17 @@ public class Note {
         this.content = content;
     }
 
-    public void setSalt(String salt) {
-        this.salt = salt;
+    public boolean isSecret() {
+        return isSecret;
+    }
+
+    public void setSecret(boolean secret) {
+        this.isSecret = secret;
+        if (!isSecret)
+            salt = null;
+    }
+
+    public boolean isEncrypted() {
+        return salt != null;
     }
 }

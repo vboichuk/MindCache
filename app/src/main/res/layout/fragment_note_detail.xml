@@ -4,6 +4,7 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
+    android:background="@color/card_bg"
     android:focusableInTouchMode="true">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -16,10 +17,24 @@
         app:menu="@menu/note_details_toolbar_menu"
         app:title="" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:paddingHorizontal="10dp"
+        android:orientation="horizontal" >
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switch_secret"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/is_secret" />
+    </LinearLayout>
+
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/white"
         android:padding="16dp">
 
         <LinearLayout
@@ -32,9 +47,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:autofillHints="@string/hint_title"
-                android:inputType=""
+                android:inputType="textCapSentences|textAutoCorrect|textMultiLine"
                 android:textSize="24sp"
-                android:textColor="@color/black"
+                android:textColor="@color/note_detail_title"
                 android:textColorHint="@android:color/darker_gray"
                 android:hint="@string/hint_title"
                 android:textStyle="bold"/>
@@ -44,8 +59,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColorHint="@android:color/darker_gray"
-                android:textColor="#575757"/>
+                android:textColor="@color/note_detail_datetime"/>
 
             <EditText
                 android:id="@+id/note_content"
@@ -55,11 +69,12 @@
                 android:autofillHints="@string/hint_content"
                 android:textColorHint="@android:color/darker_gray"
                 android:hint="@string/hint_content"
-                android:textColor="@color/black"
-                android:inputType=""
+                android:textColor="@color/note_detail_content"
+                android:inputType="textCapSentences|textAutoCorrect|textMultiLine"
                 android:lineSpacingExtra="8dp"
                 android:textSize="18sp"/>
 
         </LinearLayout>
     </ScrollView>
+
 </LinearLayout>

@@ -23,6 +23,7 @@ import com.myapp.mindcache.R;
 import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
+import com.myapp.mindcache.utils.BiometricAuthHelper;
 
 import javax.crypto.AEADBadTagException;
 

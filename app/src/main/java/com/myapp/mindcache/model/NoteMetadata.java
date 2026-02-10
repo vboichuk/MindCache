@@ -1,28 +1,20 @@
 package com.myapp.mindcache.model;
 
 
-import androidx.room.Ignore;
-
-import java.text.DateFormat;
-import java.util.Date;
-
 public class NoteMetadata {
     public final Long id;
 
-    @Ignore
-    public final boolean isEncrypted = true;
     public final Long createdAt;
-
-    @Ignore
+    public final boolean isSecret;
     public String titleHint;
 
-    public NoteMetadata(Long id, Long createdAt) {
+    public NoteMetadata(Long id, Long createdAt, boolean isSecret) {
         this.id = id;
         this.createdAt = createdAt;
-        this.titleHint = "Заметка " + id;
+        this.isSecret = isSecret;
     }
 
-    public String getFormattedDate() {
-        return DateFormat.getDateInstance().format(new Date(createdAt));
+    public Long getId() {
+        return id;
     }
 }

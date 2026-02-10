@@ -1,6 +1,7 @@
 package com.myapp.mindcache.datastorage;
 
 import android.content.Context;
+import android.os.Environment;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -10,13 +11,20 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
+import com.myapp.mindcache.dao.NoteDao;
 import com.myapp.mindcache.model.Note;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
 @Database(entities = {Note.class}, version = 1)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract NoteDao noteDao();
+
     private static final String TAG = AppDatabase.class.getSimpleName();
     private static volatile AppDatabase INSTANCE;
     private static final String DB_NAME = "secure_notes_db";
@@ -49,7 +57,8 @@ public abstract class AppDatabase extends RoomDatabase {
                 .setJournalMode(JournalMode.TRUNCATE) // Оптимизация для записи
                 .fallbackToDestructiveMigration() // Только для разработки!
                 .setQueryCallback((sqlQuery, bindArgs) ->
-                                Log.d("ROOM_QUERY", "SQL: " + sqlQuery),
+                                // Log.d("ROOM_QUERY", "SQL: " + sqlQuery),
+                                {},
                                 Executors.newSingleThreadExecutor())
                 .build();
 
@@ -67,6 +76,38 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             // Реализация миграции при необходимости
+            // database.execSQL("ALTER TABLE notes ADD COLUMN is_secret TEXT DEFAULT ''"
+            // );
         }
     };
+
+
+    public static boolean exportDatabase(Context context) {
+        File databaseFile = context.getDatabasePath(DB_NAME);
+        File exportDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOCUMENTS), "MindCache_Backup");
+
+        if (!exportDir.exists() && !exportDir.mkdirs()) {
+            Log.e(TAG, "Не удалось создать директорию для экспорта");
+            return false;
+        }
+
+        File exportFile = new File(exportDir, "secure_notes_backup.db");
+
+        try {
+            copyFile(databaseFile, exportFile);
+            Log.i(TAG, "База данных успешно экспортирована: " + exportFile.getAbsolutePath());
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Ошибка экспорта базы данных", e);
+            return false;
+        }
+    }
+
+    private static void copyFile(File source, File dest) throws IOException {
+        try (FileChannel sourceChannel = new FileInputStream(source).getChannel();
+             FileChannel destChannel = new FileOutputStream(dest).getChannel()) {
+            destChannel.transferFrom(sourceChannel, 0, sourceChannel.size());
+        }
+    }
 }
