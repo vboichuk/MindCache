@@ -18,6 +18,6 @@ public class DiaryViewModelFactory implements ViewModelProvider.Factory {
 
     @Override
     public <T extends ViewModel> T create(Class<T> modelClass) {
-        return (T) new DiaryViewModel(application, passwordManager);
+        return (T) new NotesViewModel(application, passwordManager);
     }
 }

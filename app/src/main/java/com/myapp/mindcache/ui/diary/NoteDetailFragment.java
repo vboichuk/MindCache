@@ -20,7 +20,7 @@ import androidx.navigation.Navigation;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.myapp.mindcache.R;
-import com.myapp.mindcache.datastorage.DiaryViewModel;
+import com.myapp.mindcache.datastorage.NotesViewModel;
 import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
@@ -42,20 +42,32 @@ public class NoteDetailFragment extends Fragment {
     private static final String ARG_NOTE_ID = "noteId";
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
     private final CompositeDisposable disposables = new CompositeDisposable();
-    private DiaryViewModel viewModel;
+    private NotesViewModel viewModel;
     private Long noteId = 0L;
 
     private TextView textDate;
     private EditText editTextTitle;
     private EditText editTextContent;
+    private MaterialToolbar toolbar;
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_note_detail, container, false);
+        return inflater.inflate(R.layout.fragment_note_detail, container, false);
+    }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        editTextTitle = view.findViewById(R.id.note_title);
+        editTextContent = view.findViewById(R.id.note_content);
+        textDate = view.findViewById(R.id.note_date);
+        toolbar = view.findViewById(R.id.note_details_toolbar);
+
+        setupClickListeners();
         initViewModel();
 
         if (getArguments() != null) {
@@ -68,20 +80,9 @@ public class NoteDetailFragment extends Fragment {
         else {
             setupEmptyNote();
         }
-
-        editTextTitle = view.findViewById(R.id.note_title);
-        editTextContent = view.findViewById(R.id.note_content);
-        textDate = view.findViewById(R.id.note_date);
-
-        return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        // Получаем Toolbar из разметки фрагмента
-        MaterialToolbar toolbar = view.findViewById(R.id.note_details_toolbar);
+    private void setupClickListeners() {
 
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_save) {
@@ -92,30 +93,30 @@ public class NoteDetailFragment extends Fragment {
         });
     }
 
-
     private void initViewModel() {
-        AndroidKeystoreKeyManager secureKeyManager = null;
+        System.out.println("NoteDetailFragment.initViewModel");
+        AndroidKeystoreKeyManager secureKeyManager;
         try {
             Activity activity = this.getActivity();
             assert activity != null;
             secureKeyManager = new AndroidKeystoreKeyManager();
             PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), secureKeyManager);
             DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
-            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
+            viewModel = new ViewModelProvider(this, factory).get(NotesViewModel.class);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     private void loadNoteData(long noteId) {
-        viewModel.getNoteById(noteId).observe(getViewLifecycleOwner(), note -> {
-            if (note != null) {
-                displayNote(note);
-            } else {
-                Toast.makeText(requireContext(), "Failed to load note id:" + noteId, Toast.LENGTH_LONG).show();
-                navigateBack();
-            }
-        });
+        Disposable disposable = viewModel.getNoteById(noteId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        this::displayNote,
+                        error -> Log.e("Diary", "Failed to decrypt note: " + noteId, error)
+                );
+        disposables.add(disposable);
     }
 
     private void setupEmptyNote() {

@@ -9,9 +9,8 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.myapp.mindcache.mappers.NodeMapper;
-import com.myapp.mindcache.model.FeedItem;
 import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.security.CryptoHelper;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
@@ -19,111 +18,115 @@ import com.myapp.mindcache.security.NoteEncryptionService;
 import com.myapp.mindcache.security.PasswordManager;
 
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 import javax.crypto.AEADBadTagException;
 
 import io.reactivex.Completable;
+import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 
-public class DiaryViewModel extends AndroidViewModel {
-    private static final String TAG = DiaryViewModel.class.getSimpleName();
+public class NotesViewModel extends AndroidViewModel {
+    private static final String TAG = NotesViewModel.class.getSimpleName();
 
     private final NoteRepository repository;
     private final CompositeDisposable disposables = new CompositeDisposable();
-    private final MutableLiveData<List<FeedItem>> notes = new MutableLiveData<>();
+
     private final MutableLiveData<Throwable> errors = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
-    private List<Note> cachedNotes = null;
+    private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
+    private final MutableLiveData<Map<Long, Note>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
 
     private final PasswordManager passwordManager;
 
-    public DiaryViewModel(@NonNull Application application, PasswordManager passwordManager) {
+    public NotesViewModel(@NonNull Application application, PasswordManager passwordManager) {
         super(application);
+        System.out.println("NotesViewModel.NotesViewModel");
         this.passwordManager = passwordManager;
         try {
             KeyGenerator generator = new KeyGeneratorImpl();
             CryptoHelper cryptoHelper = new CryptoHelper();
             NoteEncryptionService service = new NoteEncryptionService(generator, cryptoHelper);
             repository = new NoteRepository(application, service);
-            // loadFeedItems();
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize NoteRepository", e);
         }
     }
 
-    public LiveData<Integer> getNotesCount() {
-        return repository.getNotesCount();
+    public void init() {
+
+        repository.getNotesForList().observeForever(metadata -> {
+            notesMetadata.postValue(metadata);
+
+            // 2. Сразу начинаем дешифровку первых 3-5 заметок (видимых)
+            decryptFirstVisibleNotes(metadata);
+        });
     }
 
-    public LiveData<List<FeedItem>> getFeedItems() {
-        return notes;
+
+    public LiveData<List<NoteMetadata>> getNotesMetadata() {
+        return notesMetadata;
     }
 
-    public LiveData<Note> getNoteById(long noteId) {
-        MutableLiveData<Note> result = new MutableLiveData<>();
-        char[] password = null;
-        try {
-            password = passwordManager.getUserPassword().toCharArray();
-        } catch (AEADBadTagException e) {
-            e.printStackTrace();
-        }
-        disposables.add(repository.getNoteById(noteId, password)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        note -> {
-                            if (note != null) {
-                                result.postValue(note);
-                            } else {
-                                result.postValue(null);
-                                errors.postValue(new Exception("Note not found"));
-                            }
-                        },
-                        error -> {
-                            errors.postValue(error);
-                            result.postValue(null);
-                        }
-                ));
-
-        return result;
+    public LiveData<Map<Long, Note>> getDecryptedNotes() {
+        return decryptedNotes;
     }
 
     public LiveData<Throwable> getErrors() {
         return errors;
     }
 
-    public void loadAllNotes(boolean forceRefresh) {
-        Log.d(TAG, "loadAllNotes");
-        if (cachedNotes != null && !forceRefresh) {
-            notes.postValue(convertToFeedItems(cachedNotes));
-            return;
+    private void decryptFirstVisibleNotes(List<NoteMetadata> metadata) {
+
+        System.out.println("NotesViewModel.decryptFirstVisibleNotes");
+
+        if (metadata == null || metadata.isEmpty()) return;
+
+        int notesToDecrypt = Math.min(5, metadata.size());
+
+        for (int i = 0; i < notesToDecrypt; i++) {
+            decryptNote(metadata.get(i).id);
         }
-        isLoading.postValue(true);
-        char[] password = null;
-        try {
-            password = passwordManager.getUserPassword().toCharArray();
-        } catch (AEADBadTagException e) {
-            e.printStackTrace();
+    }
+
+    public void decryptNote(long noteId) {
+        char[] password = getPasswordOrThrow();
+
+        // Обновляем конкретную заметку в UI
+        disposables.add(
+                repository.getDecryptedNote(noteId, password)
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                this::addToDecrypted,
+                                error -> {
+                                    // Оставляем заглушку
+                                    Log.e("Diary", "Failed to decrypt note: " + noteId, error);
+                                }
+                        )
+        );
+    }
+
+
+    public Single<Note> getNoteById(long noteId) {
+        // Проверяем кэш
+        Map<Long, Note> cached = decryptedNotes.getValue();
+        if (cached != null && cached.containsKey(noteId)) {
+            Note cachedNote = cached.get(noteId);
+            assert cachedNote != null;
+            return Single.just(cachedNote);
         }
-        disposables.add(repository.getAllNotes(password)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        notes -> {
-                            cachedNotes = notes;
-                            this.notes.postValue(convertToFeedItems(notes));
-                            isLoading.postValue(false);
-                        },
-                        error -> {
-                            errors.postValue(error);
-                            isLoading.postValue(false);
-                        }
-                ));
+
+        char[] password = getPasswordOrThrow();
+        return repository.getNoteById(noteId, password)
+                .map(note -> {
+                    addToDecrypted(note);
+                    return note;
+                });
     }
 
     public Completable addNote(String title, String content) {
@@ -147,8 +150,7 @@ public class DiaryViewModel extends AndroidViewModel {
                 .doOnSuccess(id -> {
                     Log.i(TAG, "Successfully added note with id: " + id);
                     newNote.setId(id);
-                    if (cachedNotes != null)
-                        cachedNotes.add(0, newNote);
+                    addToDecrypted(newNote);
                 })
                 .ignoreElement() // Преобразуем Single<Long> в Completable
                 .doOnComplete(() -> {
@@ -173,12 +175,7 @@ public class DiaryViewModel extends AndroidViewModel {
         }
 
         isLoading.postValue(true);
-        char[] password = null;
-        try {
-            password = passwordManager.getUserPassword().toCharArray();
-        } catch (AEADBadTagException e) {
-            e.printStackTrace();
-        }
+        char[] password = getPasswordOrThrow();
 
         char[] finalPassword = password;
         return repository.updateNote(id, title, content, password)
@@ -205,10 +202,11 @@ public class DiaryViewModel extends AndroidViewModel {
         Completable completable = repository.deleteNote(id) // Уже возвращает Completable
                 .doOnComplete(() -> {
                     isLoading.postValue(false);
-                    if (cachedNotes != null) {
-                        cachedNotes.removeIf(note -> note.getId() == id);
-                        notes.postValue(convertToFeedItems(cachedNotes));
-                    }
+                    // decryptedNotes.re
+//                    if (cachedNotes != null) {
+//                        cachedNotes.removeIf(note -> note.getId() == id);
+//                        shortNotes.postValue(convertToFeedItems(cachedNotes));
+//                    }
                 })
                 .doOnError(error -> {
                     errors.postValue(error);
@@ -217,12 +215,20 @@ public class DiaryViewModel extends AndroidViewModel {
         return completable;
     }
 
+    private char[] getPasswordOrThrow() {
+        try {
+            return passwordManager.getUserPassword().toCharArray();
+        } catch (AEADBadTagException e) {
+            throw new RuntimeException("AEADBadTagException in getPasswordOrThrow");
+        }
+    }
 
-    private List<FeedItem> convertToFeedItems(List<Note> notes) {
-        return notes.stream()
-                .map(NodeMapper::toFeed)
-                .sorted(Comparator.comparing(FeedItem::getDateTime).reversed())
-                .collect(Collectors.toList());
+    private void addToDecrypted(Note newNote) {
+        Map<Long, Note> current = decryptedNotes.getValue();
+        if (current != null) {
+            current.put(newNote.getId(), newNote);
+            decryptedNotes.postValue(current);
+        }
     }
 
     @Override

@@ -8,6 +8,7 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 
 import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
@@ -16,6 +17,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -25,6 +28,7 @@ public class NoteRepository {
     private static final String TAG = NoteRepository.class.getSimpleName();
     private final NoteDao noteDao;
     private final NoteEncryptionService encryptionService;
+    private final Map<Long, Note> decryptedCache = new ConcurrentHashMap<>();
 
     public NoteRepository(Context context, NoteEncryptionService encryptionService) {
         AppDatabase db = AppDatabase.getInstance(context);
@@ -32,16 +36,52 @@ public class NoteRepository {
         this.encryptionService = encryptionService;
     }
 
-    public Single<List<Note>> getAllNotes(char[] password) {
-        return noteDao.getAllNotes()
-                .flatMap(notes -> {
-                    // Дешифровка заметок
-                    List<Note> decryptedNotes = new ArrayList<>();
-                    for (Note note : notes) {
-                        decryptedNotes.add(encryptionService.decryptNote(note, password));
-                    }
-                    return Single.just(decryptedNotes);
+
+
+    public LiveData<List<NoteMetadata>> getNotesForList() {
+        // Получаем только метаданные для списка
+        // Быстро, без дешифровки
+        return noteDao.getLatestNotesMetadata(20);
+    }
+
+    // 2. Расшифровываем конкретную заметку по требованию
+    public Single<Note> getDecryptedNote(long noteId, char[] password) {
+        // Проверяем кэш
+        if (decryptedCache.containsKey(noteId)) {
+            return Single.just(decryptedCache.get(noteId));
+        }
+
+        return noteDao.getEncryptedNoteById(noteId)
+                .map(encryptedNote -> {
+                    // Дешифруем
+                    Note decrypted = encryptionService.decryptNote(encryptedNote, password);
+
+                    // Кэшируем (но не все 1000, а только последние N)
+                    addToCache(noteId, decrypted);
+
+                    return decrypted;
                 })
+                .subscribeOn(Schedulers.io());
+    }
+
+    private void addToCache(long noteId, Note decrypted) {
+        // Храним только последние 20 расшифрованных
+        /*
+        if (decryptedCache.size() > 20) {
+            // Удаляем самую старую
+            Long oldestId = findOldestCachedNote();
+            decryptedCache.remove(oldestId);
+        }
+         */
+        decryptedCache.put(noteId, decrypted);
+    }
+
+    /*
+    public Single<List<Note>> getAllNotes(char[] password) {
+
+        return noteDao.getAllNotes()
+                .subscribeOn(Schedulers.io())
+                .flatMap(notes -> getListSingle(password, notes))
                 .doOnSuccess(notes -> {
                     // Кешируем результат после успешной дешифровки
                 })
@@ -50,8 +90,17 @@ public class NoteRepository {
                     if (password != null) {
                         Arrays.fill(password, '\0');
                     }
-                })
-                .subscribeOn(Schedulers.io());
+                });
+    }
+    */
+
+    private Single<List<Note>> getListSingle(char[] password, List<Note> notes) throws Exception {
+        // Дешифровка заметок
+        List<Note> decryptedNotes = new ArrayList<>(notes.size());
+        for (Note note : notes) {
+            decryptedNotes.add(encryptionService.decryptNote(note, password));
+        }
+        return Single.just(decryptedNotes);
     }
 
     public Single<Long> insertNote(Note note, char[] password) {
@@ -85,7 +134,7 @@ public class NoteRepository {
             try {
                 Note note = noteDao.getById(id);
                 if (note == null)
-                    return null;
+                    throw new IllegalArgumentException("Note with id: " + id + " not found");
                 note = encryptionService.decryptNote(note, password);
                 return note;
             } finally {
@@ -156,7 +205,4 @@ public class NoteRepository {
         Log.i(TAG, "password was cleared");
     }
 
-    public LiveData<Integer> getNotesCount() {
-        return noteDao.getCount();
-    }
 }

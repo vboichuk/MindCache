@@ -14,13 +14,20 @@ import com.myapp.mindcache.model.FeedItem;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
-    private List<FeedItem> items;
+    private List<FeedItem> items = new ArrayList<>();
+
     private final OnItemClickListener clickListener;
+    private final OnItemVisibleListener visibleListener;
     private final OnItemLongClickListener longClickListener;
+
+    private final Map<Long, Integer> positionsMap = new HashMap<>();
 
     private final DateTimeFormatter formatterDay =
             DateTimeFormatter.ofPattern("dd", Locale.getDefault());
@@ -28,8 +35,13 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
             DateTimeFormatter.ofPattern("MMMM", Locale.getDefault());
 
 
+
     public interface OnItemClickListener {
         void onItemClick(FeedItem note);
+    }
+
+    public interface OnItemVisibleListener {
+        void onItemVisible(long noteId);
     }
 
     public interface OnItemLongClickListener {
@@ -38,17 +50,27 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
 
     public void updateItems(List<FeedItem> items) {
         this.items = items;
+        positionsMap.clear();
+        IntStream.range(0, items.size())
+                .forEach(i -> positionsMap.put(items.get(i).getId(), i));
+
         notifyDataSetChanged();
     }
 
-    public void updateWithCount(Integer count) {
-        items = new ArrayList<>(count); // Предварительное выделение памяти
+    public void updateItem(Long id, FeedItem feedItem) {
 
-        for (int i = 0; i < count; i++) {
-            FeedItem note = new FeedItem(0, "", "", LocalDateTime.now(), ""); // Создание нового объекта
-            items.add(note);
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).getId() == feedItem.getId()) {
+                items.set(i, feedItem);
+                notifyItemChanged(i);
+                break;
+            }
         }
-        notifyDataSetChanged();
+
+//        Integer pos = positionsMap.get(id);
+//        if (pos != null)
+//            notifyItemChanged(pos);
+
     }
 
 
@@ -65,11 +87,10 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
         }
     }
 
-    public FeedAdapter(List<FeedItem> notes,
-                       OnItemClickListener listener,
+    public FeedAdapter(OnItemClickListener listener, OnItemVisibleListener visibleListener,
                        OnItemLongClickListener longClickListener) {
-        this.items = notes;
         this.clickListener = listener;
+        this.visibleListener = visibleListener;
         this.longClickListener = longClickListener;
     }
 
@@ -83,7 +104,12 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        FeedItem note = items.get(position);
+        FeedItem note = getNote(position);
+
+        // Если заметка не расшифрована и видна - сообщаем через коллбэк
+        if (note.isEncrypted() /* && !note.isLoading() */) {
+            visibleListener.onItemVisible(note.getId());
+        }
 
         holder.tvDateDay.setText(note.getDateTime().format(formatterDay));
         holder.tvDateMon.setText(note.getDateTime().format(formatterMon));
@@ -94,6 +120,11 @@ public class FeedAdapter extends RecyclerView.Adapter<FeedAdapter.ViewHolder> {
 
         holder.itemView.setOnClickListener(v -> clickListener.onItemClick(note));
         holder.itemView.setOnLongClickListener(v -> { longClickListener.onItemLongClick(note); return true; });
+    }
+
+
+    private FeedItem getNote(int position) {
+        return items.get(position);
     }
 
     @Override

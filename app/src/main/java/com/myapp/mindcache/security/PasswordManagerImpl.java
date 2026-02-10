@@ -3,6 +3,7 @@ package com.myapp.mindcache.security;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
@@ -27,7 +28,7 @@ public class PasswordManagerImpl implements PasswordManager {
         try {
             SecretKey secretKey = keystoreKeyManager.getOrCreateKey(keyAlias);
             String decrypted = helper.decrypt(encryptedPassword, secretKey);
-            // Log.d(TAG, "decrypted: " + decrypted);
+            Log.d(TAG, "decrypted password: " + decrypted);
             // pass: 0000
             return decrypted;
         } catch (AEADBadTagException e) {

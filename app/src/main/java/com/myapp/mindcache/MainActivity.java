@@ -13,11 +13,13 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.myapp.mindcache.databinding.ActivityMainBinding;
+import com.myapp.mindcache.datastorage.NotesViewModel;
 import com.myapp.mindcache.utils.KeyboardUtils;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
+    // private NotesViewModel sharedViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -24,15 +24,17 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentDiaryBinding;
-import com.myapp.mindcache.datastorage.DiaryViewModel;
+import com.myapp.mindcache.datastorage.NotesViewModel;
 import com.myapp.mindcache.datastorage.DiaryViewModelFactory;
+import com.myapp.mindcache.mappers.NodeMapper;
 import com.myapp.mindcache.model.FeedItem;
+import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -42,13 +44,10 @@ public class DiaryFragment extends Fragment {
 
     private static final String TAG = DiaryFragment.class.getSimpleName();
     private FragmentDiaryBinding fragmentDiaryBinding;
-    private RecyclerView recyclerView;
-    private DiaryViewModel viewModel;
-    private final CompositeDisposable disposables = new CompositeDisposable();
+    private NotesViewModel viewModel;
+    private FeedAdapter feedAdapter;
 
-    public void onCreate(Bundle savedInstance) {
-        super.onCreate(savedInstance);
-    }
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -64,12 +63,6 @@ public class DiaryFragment extends Fragment {
         setupRecyclerView();
         initViewModel();
         observeViewModel();
-        loadNotes();
-    }
-
-
-    private void setupClickListeners() {
-        fragmentDiaryBinding.addButton.setOnClickListener(v -> this.onAddClick());
     }
 
     @Override
@@ -78,9 +71,17 @@ public class DiaryFragment extends Fragment {
         super.onPause();
     }
 
+
+    private void setupClickListeners() {
+        fragmentDiaryBinding.addButton.setOnClickListener(v -> this.onAddClick());
+    }
+
     private void observeViewModel() {
         // Подписываемся на LiveData из ViewModel
-        viewModel.getFeedItems().observe(getViewLifecycleOwner(), this::updateAdapter);
+
+        viewModel.init();
+
+        // viewModel.getFeedItems().observe(getViewLifecycleOwner(), this::updateAdapter);
 
         viewModel.getErrors().observe(getViewLifecycleOwner(), error -> {
             if (error != null) {
@@ -88,20 +89,20 @@ public class DiaryFragment extends Fragment {
             }
         });
 
-        viewModel.getNotesCount().observe(getViewLifecycleOwner(), this::onNotesCountChange);
+        viewModel.getNotesMetadata().observe(getViewLifecycleOwner(), items -> {
+            feedAdapter.updateItems(
+                    items.stream()
+                            .map(NodeMapper::toFeed)
+                            .collect(Collectors.toList())
+            );
+        });
+
+        viewModel.getDecryptedNotes().observe(getViewLifecycleOwner(), items -> {
+            for (Map.Entry<Long, Note> entry : items.entrySet()) {
+                feedAdapter.updateItem(entry.getKey(), NodeMapper.toFeed(entry.getValue()));
+            }
+        });
     }
-
-    private void onNotesCountChange(Integer count) {
-        Toast.makeText(getContext(), "count: " + count, Toast.LENGTH_SHORT).show();
-
-        FeedAdapter adapter = (FeedAdapter) recyclerView.getAdapter();
-        if (adapter != null) {
-            adapter.updateWithCount(count);
-            // binding.emptyView.setVisibility(notes.isEmpty() ? View.VISIBLE : View.GONE);
-        }
-    }
-
-
 
     private void initViewModel() {
         Log.d(TAG, "initViewModel");
@@ -112,17 +113,10 @@ public class DiaryFragment extends Fragment {
             keystoreKeyManager = new AndroidKeystoreKeyManager();
             PasswordManager passwordManager = new PasswordManagerImpl(activity.getApplication(), keystoreKeyManager);
             DiaryViewModelFactory factory = new DiaryViewModelFactory(activity.getApplication(), passwordManager);
-            viewModel = new ViewModelProvider(this, factory).get(DiaryViewModel.class);
+            viewModel = new ViewModelProvider(this, factory).get(NotesViewModel.class);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private void loadNotes() {
-        Log.d(TAG, "loadNotes");
-
-        // Инициируем загрузку (если не делаем auto-load в ViewModel)
-        viewModel.loadAllNotes(true);
     }
 
     private void onAddClick() {
@@ -141,23 +135,16 @@ public class DiaryFragment extends Fragment {
         navController.navigate(R.id.action_diary_to_noteDetail, args);
     }
 
-
-
-    private void updateAdapter(List<FeedItem> notes) {
-        Log.d(TAG, "updateAdapter with " + notes.size() + " items");
-        FeedAdapter adapter = (FeedAdapter) recyclerView.getAdapter();
-        if (adapter != null) {
-            adapter.updateItems(notes);
-            // binding.emptyView.setVisibility(notes.isEmpty() ? View.VISIBLE : View.GONE);
-        }
+    private void setupRecyclerView() {
+        RecyclerView recyclerView = fragmentDiaryBinding.recyclerView;
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        feedAdapter = new FeedAdapter(this::onNoteClick, this::onNoteVisible, this::onNoteLongClick);
+        recyclerView.setAdapter(feedAdapter);
+        recyclerView.setHasFixedSize(true);
     }
 
-    private void setupRecyclerView() {
-        recyclerView = fragmentDiaryBinding.recyclerView;
-        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        FeedAdapter adapter = new FeedAdapter(new ArrayList<>(0), this::onNoteClick, this::onNoteLongClick);
-        recyclerView.setAdapter(adapter);
-        recyclerView.setHasFixedSize(true);
+    private void onNoteVisible(long l) {
+        viewModel.decryptNote(l);
     }
 
     private void onNoteLongClick(FeedItem feedItem) {
@@ -215,7 +202,7 @@ public class DiaryFragment extends Fragment {
                         () -> {
                             Log.d(TAG, "deleteNote OK");
                             Toast.makeText(requireContext(), "DELETED", Toast.LENGTH_SHORT).show();
-                            viewModel.loadAllNotes(false);
+                            // viewModel.loadAllNotes(false);
                         },
                         error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show()
                 );
@@ -227,7 +214,7 @@ public class DiaryFragment extends Fragment {
             Snackbar.make(fragmentDiaryBinding.getRoot(),
                             R.string.error_loading_notes,
                             Snackbar.LENGTH_LONG)
-                    .setAction(R.string.retry, v -> loadNotes())
+                    .setAction(R.string.retry, v -> {})
                     .show();
         }
     }
