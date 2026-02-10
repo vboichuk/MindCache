@@ -12,13 +12,13 @@ import java.security.KeyStoreException;
 
 public class AndroidKeystoreKeyManager {
 
-    private static final String TAG = "AndroidKeystoreKeyManager";
+    private static final String TAG = AndroidKeystoreKeyManager.class.getSimpleName();
     private static final String KEY_STORE = "AndroidKeyStore";
 
     private final KeyStore keyStore;
 
     public AndroidKeystoreKeyManager() throws Exception {
-        this.keyStore = KeyStore.getInstance("AndroidKeyStore");
+        this.keyStore = KeyStore.getInstance(KEY_STORE);
         this.keyStore.load(null);
     }
 

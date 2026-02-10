@@ -1,5 +1,6 @@
 package com.myapp.mindcache.ui.auth;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -12,7 +13,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
@@ -24,9 +24,6 @@ import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
 import javax.crypto.AEADBadTagException;
 
 public class AuthFragment extends Fragment {
@@ -35,14 +32,20 @@ public class AuthFragment extends Fragment {
     private Button btnLogin;
     private EditText editPassword;
     private LinearLayout passwordLayout;
-
-    private final Executor executor = Executors.newSingleThreadExecutor();
-
+    private final BiometricAuthHelper authHelper = new BiometricAuthHelper();
     private PasswordManager passwordManager;
+
+    private static final int MIN_PASSWORD_LENGTH = 4;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_auth, container, false);
+    }
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
 
         try {
             AndroidKeystoreKeyManager secureKeyManager = new AndroidKeystoreKeyManager();
@@ -50,8 +53,6 @@ public class AuthFragment extends Fragment {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        return inflater.inflate(R.layout.fragment_auth, container, false);
     }
 
     @Override
@@ -62,8 +63,13 @@ public class AuthFragment extends Fragment {
         editPassword = view.findViewById(R.id.edittext_password);
         passwordLayout = view.findViewById(R.id.input_password_layout);
 
-        btnLogin.setOnClickListener(v -> onLoginClick());
         passwordLayout.setVisibility(passwordManager.isPasswordSet() ? View.GONE : View.VISIBLE);
+
+        setupClickListeners();
+    }
+
+    private void setupClickListeners() {
+        btnLogin.setOnClickListener(v -> onLoginClick());
     }
 
     @Override
@@ -78,7 +84,7 @@ public class AuthFragment extends Fragment {
     }
 
     private void onLoginClick() {
-        if (editPassword.getText().length() < 4) {
+        if (editPassword.getText().length() < MIN_PASSWORD_LENGTH) {
             Toast.makeText(getContext(), "Password too short", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -86,39 +92,50 @@ public class AuthFragment extends Fragment {
         showBiometricPrompt();
     }
 
-
     private void showBiometricPrompt() {
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle(getString(R.string.login_into_app))
-                .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_WEAK |
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                .build();
-
-        BiometricPrompt biometricPrompt = new BiometricPrompt(
-                this,
-                executor,
-                new BiometricPrompt.AuthenticationCallback() {
+        authHelper.authenticate(this, new BiometricAuthHelper.AuthCallback() {
             @Override
-            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                super.onAuthenticationSucceeded(result);
-                AuthFragment.this.onAuthSuccess();
+            public void onSuccess() {
+                boolean isPasswordSet = passwordManager.isPasswordSet();
+                if (!isPasswordSet) {
+                    passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
+                }
+
+                try {
+                    checkPasswordIsSet();
+                    navigateToDiary();
+                } catch (AEADBadTagException e) {
+                    Log.e(TAG, "e.getCause() = " + e.getCause());
+                    e.printStackTrace();
+                    passwordManager.resetPassword();
+                    showPasswordPrompt();
+                }
             }
 
             @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                AuthFragment.this.onAuthFailed();
+            public void onFailure() {
+                Snackbar.make(AuthFragment.this.getView(),
+                                "Лицо не распознано",
+                                Snackbar.LENGTH_LONG)
+                        // .setAction(R.string.retry, v -> loadNotes())
+                        .show();
             }
 
             @Override
-            public void onAuthenticationError(int errorCode, CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                AuthFragment.this.onAuthError(errorCode, errString.toString());
+            public void onError(int errorCode, String error) {
+                if (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
+                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                ) {
+                    AuthFragment.this.getActivity().finish();
+                }
+
+                String text = "Error: " + errorCode + " (" + error + ")";
+                Snackbar.make(AuthFragment.this.getView(),
+                                text, Snackbar.LENGTH_LONG)
+                        // .setAction(R.string.retry, v -> loadNotes())
+                        .show();
             }
         });
-
-        biometricPrompt.authenticate(promptInfo);
     }
 
     private void navigateToDiary() {
@@ -127,55 +144,15 @@ public class AuthFragment extends Fragment {
         navController.navigate(R.id.action_auth_to_diary);
     }
 
-    private void onAuthSuccess() {
-        boolean isPasswordSet = passwordManager.isPasswordSet();
-
-        if (!isPasswordSet) {
-            passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
-        }
-
-        String userPassword = null;
-        try {
-            userPassword = passwordManager.getUserPassword();
-            Log.d(TAG, "userPassword: [" + userPassword + "]");
-            getActivity().runOnUiThread(this::navigateToDiary);
-        } catch (AEADBadTagException e) {
-            System.out.println("e.getCause() = " + e.getCause());
-            e.printStackTrace();
-            passwordManager.resetPassword();
-            getActivity().runOnUiThread(this::showPasswordPrompt);
-        }
+    /** @noinspection unused*/
+    private void checkPasswordIsSet() throws AEADBadTagException {
+        String userPassword;
+        userPassword = passwordManager.getUserPassword();
+        // Log.d(TAG, "userPassword: [" + userPassword + "]");
     }
 
     private void showPasswordPrompt() {
-
-        System.out.println("AuthFragment.showPasswordPrompt");
+        Log.d(TAG, "AuthFragment.showPasswordPrompt");
         passwordLayout.setVisibility(View.VISIBLE);
-    }
-
-    private void onAuthFailed() {
-        getActivity().runOnUiThread(() -> {
-            Snackbar.make(this.getView(),
-                            "Лицо не распознано",
-                            Snackbar.LENGTH_LONG)
-                    // .setAction(R.string.retry, v -> loadNotes())
-                    .show();
-        });
-    }
-
-    private void onAuthError(int errorCode, String errString) {
-        if (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
-        ) {
-            this.getActivity().finish();
-        }
-
-        getActivity().runOnUiThread(() -> {
-            String text = "Error: " + errorCode + " (" + errString + ")";
-            Snackbar.make(getView(),
-                            text, Snackbar.LENGTH_LONG)
-                    // .setAction(R.string.retry, v -> loadNotes())
-                    .show();
-        });
     }
 }

@@ -42,6 +42,7 @@ public class PasswordManagerImpl implements PasswordManager {
 
     @Override
     public void setUserPassword(char[] password) {
+        Log.i(TAG, "setUserPassword");
         validatePassword(password);
         CryptoHelper helper = new CryptoHelper();
         try {
