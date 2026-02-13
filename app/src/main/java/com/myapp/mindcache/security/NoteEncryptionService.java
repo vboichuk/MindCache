@@ -1,10 +1,8 @@
 package com.myapp.mindcache.security;
 
-import android.util.Log;
-
 import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.model.NotePreview;
 
-import java.util.Arrays;
 import java.util.Base64;
 
 import javax.crypto.SecretKey;
@@ -26,18 +24,21 @@ public class NoteEncryptionService {
         byte[] salt = keyGenerator.generateSalt();
         SecretKey key = keyGenerator.generateDataKey(password, salt);
 
+        String title = cryptoHelper.encrypt(note.getTitle(), key);
+        String content = cryptoHelper.encrypt(note.getContent(), key);
+        String preview = cryptoHelper.encrypt(note.getPreview(), key);
+
         return new Note(
                 note.getId(),
-                cryptoHelper.encrypt(note.getTitle(), key),
-                cryptoHelper.encrypt(note.getContent(), key),
+                title,
+                content,
+                preview,
                 note.getCreatedAt(),
                 Base64.getEncoder().encodeToString(salt)
         );
     }
 
     public Note decryptNote(Note encryptedNote, char[] password) throws Exception {
-        Log.d(TAG, "decryptNote " + encryptedNote.getId());
-        // Log.d(TAG, "password = " + Arrays.toString(password));
 
         assert encryptedNote.isSecret();
 
@@ -50,5 +51,22 @@ public class NoteEncryptionService {
                 cryptoHelper.decrypt(encryptedNote.getContent(), key),
                 encryptedNote.getCreatedAt(),
                 true);
+    }
+
+    public NotePreview decryptPreview(NotePreview encryptedNote, char[] password) throws Exception {
+
+        assert encryptedNote.isSecret();
+
+        byte[] salt = Base64.getDecoder().decode(encryptedNote.getSalt());
+        SecretKey key = keyGenerator.generateDataKey(password, salt);
+
+        String title = cryptoHelper.decrypt(encryptedNote.getTitle(), key);
+        String preview = encryptedNote.getPreview().isEmpty() ? "" : cryptoHelper.decrypt(encryptedNote.getPreview(), key);
+
+        NotePreview notePreview = new NotePreview(encryptedNote);
+        notePreview.setTitle(title);
+        notePreview.setPreview(preview);
+
+        return notePreview;
     }
 }

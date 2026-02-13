@@ -13,7 +13,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.mappers.NodeMapper;
-import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.model.NotePreview;
 
@@ -60,10 +59,6 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
 
         List<Long> ids = metadata.stream().map(NoteMetadata::getId).collect(Collectors.toList());
         Log.d(TAG, "submitMetadata with ids: " + ids);
-
-        if (metadata.size() == displayList.size()) {
-            throw new IllegalStateException("submitMetadata");
-        }
 
         // Строим новый displayList в правильном порядке
         List<NotePreview> newDisplayList = new ArrayList<>();
@@ -123,16 +118,19 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         Log.d(TAG, "Display list updated. Size: " + displayList.size());
     }
 
-    boolean notesAreEqual(NotePreview preview, Note note) {
-        return preview.getId() == note.getId() && preview.getTitle().equals(note.getTitle());
+    boolean notesAreEqual(NotePreview preview, NotePreview note) {
+        return preview.getId() == note.getId()
+                && preview.getTitle().equals(note.getTitle())
+                && preview.getPreview().equals(note.getPreview());
     }
 
-    public void updateItems(Collection<Note> updatedNotes) {
+    public void updateItems(Collection<NotePreview> updatedNotes) {
         boolean changed = false;
-        for (Note note : updatedNotes) {
+        for (NotePreview note : updatedNotes) {
+            // Log.d(TAG, "updateItem '" + note.getTitle() + "' + [" + note.getPreview() + "]");
             Integer pos = positionCache.get(note.getId());
             if (pos != null && !notesAreEqual(displayList.get(pos), note)) {
-                displayList.set(pos, NodeMapper.toPreview(note));
+                displayList.set(pos, note);
                 notifyItemChanged(pos);
                 changed = true;
             }
@@ -164,18 +162,21 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         NotePreview note = getNote(position);
 
         // Если заметка не расшифрована и видна - сообщаем через коллбэк
-        if (note.isEncrypted()) {
+        if (note.getPreview().isEmpty()) { // HACK
             visibleListener.onItemVisible(note.getId());
         }
 
-        holder.tvDateDay.setText(note.getDateTime().format(formatterDay));
-        holder.tvDateMon.setText(note.getDateTime().format(formatterMon));
+        holder.tvDateDay.setText(note.getCreatedAt().format(formatterDay));
+        holder.tvDateMon.setText(note.getCreatedAt().format(formatterMon));
 
         holder.tvEmoji.setText(note.getEmoji());
         holder.tvLock.setVisibility(note.isSecret() ? View.VISIBLE : View.INVISIBLE);
-        
+
         holder.tvTitle.setText(note.getTitle());
-        holder.tvContent.setText(note.getContent());
+        holder.tvPreview.setText(note.getPreview());
+        // Log.d(TAG, "note [" + note.getId() + "] preview: '" + note.getPreview() + "'");
+        // holder.tvSalt.setText(note.getSalt());
+        holder.tvId.setText(String.valueOf(note.getId()));
 
         holder.itemView.setOnClickListener(v -> clickListener.onItemClick(note));
         holder.itemView.setOnLongClickListener(v -> { longClickListener.onItemLongClick(note); return true; });
@@ -192,7 +193,7 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvDateDay, tvDateMon, tvLock, tvEmoji, tvTitle, tvContent;
+        TextView tvDateDay, tvDateMon, tvLock, tvEmoji, tvTitle, tvPreview, tvId;
 
         public ViewHolder(View itemView) {
             super(itemView);
@@ -201,7 +202,8 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
             tvEmoji = itemView.findViewById(R.id.tvEmoji);
             tvLock = itemView.findViewById(R.id.tvLock);
             tvTitle = itemView.findViewById(R.id.tvTitle);
-            tvContent = itemView.findViewById(R.id.tvContent);
+            tvPreview = itemView.findViewById(R.id.tvPreview);
+            tvId = itemView.findViewById(R.id.tvId);
         }
     }
 }

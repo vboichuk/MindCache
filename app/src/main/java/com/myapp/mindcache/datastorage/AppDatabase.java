@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
-@Database(entities = {Note.class}, version = 1)
+@Database(entities = {Note.class}, version = 2)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract NoteDao noteDao();
 
@@ -76,8 +76,7 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             // Реализация миграции при необходимости
-            // database.execSQL("ALTER TABLE notes ADD COLUMN is_secret TEXT DEFAULT ''"
-            // );
+            database.execSQL("ALTER TABLE notes ADD COLUMN preview TEXT DEFAULT ''");
         }
     };
 

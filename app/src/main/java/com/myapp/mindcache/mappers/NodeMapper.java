@@ -5,37 +5,31 @@ import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 
 
 public abstract class NodeMapper {
 
     public static NotePreview toPreview(Note note) {
-        NotePreview notePreview = NotePreview.of(
+        return new NotePreview(
                 note.getId(),
                 note.getTitle(),
-                note.getContent(),
-                LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(note.getCreatedAt()),
-                        ZoneId.systemDefault()),
-                getEmojiForNote(note)
+                note.getPreview(),
+                note.getCreatedAt(),
+                note.isSecret(),
+                note.getSalt()
         );
-        notePreview.setSecret(note.isSecret());
-        return notePreview;
     }
 
     public static NotePreview toPreview(NoteMetadata metadata) {
-        NotePreview notePreview = NotePreview.of(
+        NotePreview notePreview = new NotePreview(
                 metadata.id,
                 Optional.ofNullable(metadata.titleHint).orElse("Secret note"),
-                LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(metadata.createdAt),
-                        ZoneId.systemDefault())
-        );
-        notePreview.setSecret(metadata.isSecret);
+                "",
+                metadata.createdAt,
+                metadata.isSecret,
+                null);
+        notePreview.setEncrypted(metadata.isSecret);
         return notePreview;
     }
 
@@ -43,6 +37,7 @@ public abstract class NodeMapper {
         return new Note(
                 dto.getTitle(),
                 dto.getContent(),
+                null,
                 dto.getCreatedAt(),
                 dto.isSecret());
     }

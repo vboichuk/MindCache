@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.mappers.NodeMapper;
+import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.repositories.NoteRepository;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
@@ -21,7 +22,7 @@ import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
 import com.myapp.mindcache.security.PasswordManager;
 
-import java.util.Arrays;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class NotesViewModel extends AndroidViewModel {
 
     private final MutableLiveData<Throwable> errors = new MutableLiveData<>();
     private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
-    private final MutableLiveData<Map<Long, Note>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
+    private final MutableLiveData<Map<Long, NotePreview>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
 
     private final PasswordManager passwordManager;
 
@@ -78,7 +79,7 @@ public class NotesViewModel extends AndroidViewModel {
         return notesMetadata;
     }
 
-    public LiveData<Map<Long, Note>> getDecryptedNotes() {
+    public LiveData<Map<Long, NotePreview>> getCachedPreviews() {
         return decryptedNotes;
     }
 
@@ -93,14 +94,14 @@ public class NotesViewModel extends AndroidViewModel {
 
     public void prefetchNote(long noteId) {
 
-        if (isNoteCached(noteId) || isNoteDecrypting(noteId)) {
+        if (isNoteCached(noteId) || isNoteLoading(noteId)) {
             return;
         }
-        markAsDecrypting(noteId);
+        markAsLoading(noteId);
 
         char[] password = getPasswordOrThrow();
         disposables.add(
-                repository.getDecryptedNote(noteId, password)
+                repository.getDecryptedPreview(noteId, password)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
@@ -117,22 +118,16 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     public Single<Note> getNoteById(long noteId) {
-        Map<Long, Note> cache = decryptedNotes.getValue();
-        if (cache != null) {
-            Note cachedNote = cache.get(noteId);
-            if (cachedNote != null)
-                return Single.just(cachedNote);
-        }
-
         char[] password = getPasswordOrThrow();
         return repository.getDecryptedNote(noteId, password)
                 .map(note -> {
-                    addToCache(note);
+                    // addToCache(note);
                     return note;
                 });
     }
 
     public Completable addNote(NoteCreateDto dto) {
+
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
@@ -170,17 +165,17 @@ public class NotesViewModel extends AndroidViewModel {
                     Log.e(TAG, "Error updating note", error);
                     errors.postValue(error);
                 })
-                .doOnDispose(() -> {
-                    if (password != null)
-                        Arrays.fill(password, '\0');
-                });
+                .doOnDispose(() -> { });
     }
 
     public Completable deleteNote(long id) {
-        Log.i(TAG, "called deleteNote id: " + id);
         return repository.deleteNote(id)
                 .doOnComplete(() -> removeFromCache(id))
-                .doOnError(errors::postValue);
+                .doOnError(value -> {
+                    Log.e(TAG, "Delete failed", value);
+                    errors.postValue(value);
+                })
+                .doOnDispose(() -> { });
     }
 
 
@@ -192,30 +187,35 @@ public class NotesViewModel extends AndroidViewModel {
         }
     }
 
-    private void addToCache(Note newNote) {
-        Map<Long, Note> current = decryptedNotes.getValue();
+
+    private void addToCache(NotePreview newNote) {
+        Map<Long, NotePreview> current = decryptedNotes.getValue();
         if (current != null) {
-            // Log.d(TAG, "addToCache " + newNote.getTitle());
             current.put(newNote.getId(), newNote);
             decryptedNotes.postValue(current);
         }
     }
 
     private void addToCache(NoteUpdateDto updateDto) {
-        Map<Long, Note> current = decryptedNotes.getValue();
+        Map<Long, NotePreview> current = decryptedNotes.getValue();
         if (current != null) {
-            Note note = current.get(updateDto.getId());
+            NotePreview note = current.get(updateDto.getId());
             if (note != null) {
                 note.setTitle(updateDto.getTitle());
-                note.setContent(updateDto.getContent());
+                note.setPreview(updateDto.getContent());
                 note.setSecret(updateDto.isSecret());
                 decryptedNotes.postValue(current);
             }
         }
     }
 
+    private void addToCache(Note note) {
+        addToCache(NodeMapper.toPreview(note));
+    }
+
+
     private void removeFromCache(long id) {
-        Map<Long, Note> current = decryptedNotes.getValue();
+        Map<Long, NotePreview> current = decryptedNotes.getValue();
         if (current != null) {
             current.remove(id);
             Log.d(TAG, "removeFromCache " + id);
@@ -225,15 +225,15 @@ public class NotesViewModel extends AndroidViewModel {
 
 
     private boolean isNoteCached(long noteId) {
-        Map<Long, Note> cache = decryptedNotes.getValue();
+        Map<Long, NotePreview> cache = decryptedNotes.getValue();
         return cache != null && cache.containsKey(noteId);
     }
 
-    private boolean isNoteDecrypting(long noteId) {
+    private boolean isNoteLoading(long noteId) {
         return decryptingIds.contains(noteId);
     }
 
-    private void markAsDecrypting(long noteId) {
+    private void markAsLoading(long noteId) {
         // Log.d(TAG, "+ markAsDecrypting " + noteId);
         decryptingIds.add(noteId);
     }
@@ -249,5 +249,13 @@ public class NotesViewModel extends AndroidViewModel {
         super.onCleared();
         disposables.dispose();
         Log.d(TAG, "ViewModel cleared");
+    }
+
+    public Completable changeNoteDate(Long id, LocalDateTime datetime) {
+        return Completable.fromAction(() ->
+                        repository.updateDateTime(id, datetime)
+                )
+                .subscribeOn(Schedulers.io()) // Фоновый поток
+                .observeOn(AndroidSchedulers.mainThread()); // Результат в UI поток
     }
 }

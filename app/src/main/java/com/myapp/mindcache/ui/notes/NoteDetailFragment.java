@@ -6,8 +6,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,10 +15,9 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
+import com.myapp.mindcache.databinding.FragmentNoteDetailBinding;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
@@ -41,34 +38,25 @@ import io.reactivex.schedulers.Schedulers;
 public class NoteDetailFragment extends Fragment {
     private static final String ARG_NOTE_ID = "noteId";
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
+
     private final CompositeDisposable disposables = new CompositeDisposable();
     private NotesViewModel viewModel;
     private Long noteId = 0L;
 
-    private TextView textDate;
-    private EditText editTextTitle;
-    private EditText editTextContent;
-    private MaterialToolbar toolbar;
-    private SwitchMaterial switchSecret;
+    private FragmentNoteDetailBinding binding;
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_note_detail, container, false);
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        binding = FragmentNoteDetailBinding.inflate(inflater, container, false);
+        return binding.getRoot();
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        editTextTitle = view.findViewById(R.id.note_title);
-        editTextContent = view.findViewById(R.id.note_content);
-        textDate = view.findViewById(R.id.note_date);
-        toolbar = view.findViewById(R.id.note_details_toolbar);
-        switchSecret = view.findViewById(R.id.switch_secret);
-
         setupClickListeners();
         initViewModel();
 
@@ -83,7 +71,7 @@ public class NoteDetailFragment extends Fragment {
 
     private void setupClickListeners() {
 
-        toolbar.setOnMenuItemClickListener(item -> {
+        binding.noteDetailsToolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_save) {
                 saveNote();
                 return true;
@@ -110,31 +98,29 @@ public class NoteDetailFragment extends Fragment {
     }
 
     private void displayNote(Note note) {
-        View view = getView();
-        if (view == null)
+        if (!isAdded() || getView() == null)
             return;
 
-        editTextTitle.setText(note.getTitle());
-        editTextContent.setText(note.getContent());
-        switchSecret.setChecked(note.isSecret());
-        switchSecret.jumpDrawablesToCurrentState();
+        binding.noteTitle.setText(note.getTitle());
+        binding.noteContent.setText(note.getContent());
+        binding.switchSecret.setChecked(note.isSecret());
+        binding.switchSecret.jumpDrawablesToCurrentState();
 
         LocalDateTime dateTime = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(note.getCreatedAt()),
                 ZoneId.systemDefault());
 
-        textDate.setText(dateTime.format(dateTimeFormatter));
+        binding.noteDate.setText(dateTime.format(dateTimeFormatter));
     }
     
     private void saveNote() {
-        String title = editTextTitle.getText().toString();
-        String content = editTextContent.getText().toString();
-        boolean isSecret = switchSecret.isChecked();
+        String title = binding.noteTitle.getText().toString().trim();
+        String content = binding.noteContent.getText().toString().trim();
+        boolean isSecret = binding.switchSecret.isChecked();
 
         if (noteId > 0) {
             updateExistingNote(title, content, isSecret);
-        }
-        else {
+        } else {
             createNewNote(title, content, isSecret);
         }
     }
@@ -146,13 +132,16 @@ public class NoteDetailFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         () -> {
-                            Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                            navigateBack();
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
+                                navigateBack();
+                            }
                         },
                         throwable -> {
                             Log.e(TAG, "Error adding note", throwable);
-                            String errorMsg = throwable.getMessage();
-                            Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show();
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(), throwable.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
                         }
                 );
         disposables.add(disposable);
@@ -181,7 +170,7 @@ public class NoteDetailFragment extends Fragment {
     private void navigateBack() {
         try {
             NavController navController = Navigation.findNavController(requireView());
-             navController.popBackStack();
+            navController.popBackStack();
         } catch (IllegalStateException e) {
             Log.e(TAG, e.getMessage());
         }

@@ -15,24 +15,27 @@ public class Note {
     private final long createdAt;
     private String title;    // encrypted
     private String content;  // encrypted
+    private String preview;  // encrypted
     private String salt;     // Base64-соль (null, если заметка не зашифрована)
 
     @Ignore
     private boolean isSecret;
 
-    public Note(long id, String title, String content, long createdAt, String salt) {
+    public Note(long id, String title, String content, String preview, long createdAt, String salt) {
         this.id = id;
         this.title = title;
         this.content = content;
+        this.preview = preview;
         this.createdAt = createdAt;
         this.salt = salt;
         this.isSecret = salt != null;
     }
 
     @Ignore
-    public Note(String title, String content, long createdAt, boolean isSecret) {
+    public Note(String title, String content, String preview, long createdAt, boolean isSecret) {
         this.title = title;
         this.content = content;
+        this.preview = preview;
         this.createdAt = createdAt;
         this.isSecret = isSecret;
     }
@@ -64,6 +67,14 @@ public class Note {
 
     public String getSalt() {
         return salt;
+    }
+
+    public String getPreview() {
+        return preview;
+    }
+
+    public void setPreview(String preview) {
+        this.preview = preview;
     }
 
 

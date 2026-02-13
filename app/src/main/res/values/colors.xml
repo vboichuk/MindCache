@@ -10,7 +10,7 @@
 
     <color name="card_title">#000000</color>
     <color name="card_date">#5580ED</color>
-    <color name="card_content">#0D0D0D</color>
+    <color name="card_preview">#0D0D0D</color>
     <color name="card_bg">#FDFCF0</color>
     <color name="card_border">#EDEAD0</color>
     <color name="blue2">#2D3C92</color>

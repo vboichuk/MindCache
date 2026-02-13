@@ -24,4 +24,5 @@
     <string name="confirm_delete_note">Confirm deleting a note</string>
     <string name="ask_delete_note">Delete note</string>
     <string name="is_secret">is secret</string>
+    <string name="icon_secret_note">🔒</string>
 </resources>

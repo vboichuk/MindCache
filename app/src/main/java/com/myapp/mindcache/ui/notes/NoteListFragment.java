@@ -26,7 +26,6 @@ import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentDiaryBinding;
-import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
@@ -58,6 +57,7 @@ public class NoteListFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         fragmentDiaryBinding = FragmentDiaryBinding.inflate(inflater, container, false);
+        Log.i(TAG, "this: " + this);
         return fragmentDiaryBinding.getRoot();
     }
 
@@ -116,7 +116,7 @@ public class NoteListFragment extends Fragment {
 
         viewModel.getNotesMetadata().observe(getViewLifecycleOwner(), this::onFetchMetadata);
 
-        viewModel.getDecryptedNotes().observe(getViewLifecycleOwner(), items -> {
+        viewModel.getCachedPreviews().observe(getViewLifecycleOwner(), items -> {
             Log.d(TAG, "decryptedNotes were updated with " + items.size() + " items");
             noteListAdapter.updateItems(items.values());
         });
@@ -131,10 +131,10 @@ public class NoteListFragment extends Fragment {
                 .collect(Collectors.toList());
 
         // send cached to adapter
-        Map<Long, Note> decryptedNotes = viewModel.getDecryptedNotes().getValue();
-        if (decryptedNotes != null) {
+        Map<Long, NotePreview> cachedPreviews = viewModel.getCachedPreviews().getValue();
+        if (cachedPreviews != null) {
             Set<Long> idSet = new HashSet<>(ids);
-            List<Note> cached = decryptedNotes.entrySet().stream()
+            List<NotePreview> cached = cachedPreviews.entrySet().stream()
                     .filter(kv -> idSet.contains(kv.getKey()))
                     .map(Map.Entry::getValue)
                     .collect(Collectors.toList());
@@ -143,7 +143,7 @@ public class NoteListFragment extends Fragment {
 
         // prefetch non-cached notes
         List<Long> missing = ids.stream()
-                .filter(id -> decryptedNotes == null || !decryptedNotes.containsKey(id))
+                .filter(id -> cachedPreviews == null || !cachedPreviews.containsKey(id))
                 .limit(PREFETCH_LIMIT)
                 .collect(Collectors.toList());
         viewModel.prefetchNotes(missing);
@@ -238,7 +238,6 @@ public class NoteListFragment extends Fragment {
     }
 
     private void deleteNote(long id) {
-        Log.i(TAG, "called deleteNote " + id);
         Disposable subscribe = viewModel.deleteNote(id)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
@@ -247,22 +246,20 @@ public class NoteListFragment extends Fragment {
                         error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show()
                 );
         disposables.add(subscribe);
-
-    /*
-        LocalDateTime datetime = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
-        Disposable disposable = viewModel.changeNoteDate(29L, datetime)
-                .subscribe(
-                        () -> Log.d(TAG, "Updated successfully"),
-                        error -> Log.e(TAG, "Update failed", error)
-                );
-        disposables.add(disposable);
- */
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        disposables.dispose();
+        disposables.clear();
         fragmentDiaryBinding = null;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (!disposables.isDisposed()) {
+            disposables.dispose();
+        }
     }
 }

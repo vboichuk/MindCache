@@ -38,8 +38,15 @@
             android:id="@+id/tvLock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔒"
+            android:text="@string/icon_secret_note"
             android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/tvId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/tvEmoji"
@@ -55,18 +62,19 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:textColor="@color/card_title"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:maxLines="1"
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/tvContent"
+        android:id="@+id/tvPreview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:maxLines="2"
         android:minLines="2"
-        android:textColor="@color/card_content"
-        android:textSize="14sp" />
+        android:textColor="@color/card_preview"
+        android:textSize="16sp" />
+
 </LinearLayout>
