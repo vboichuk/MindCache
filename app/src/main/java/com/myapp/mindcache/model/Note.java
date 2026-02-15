@@ -49,6 +49,17 @@ public class Note {
         this.isSecret = isSecret;
     }
 
+    @Ignore
+    public Note(Note other) {
+        this.id = other.id;
+        this.title = other.title;
+        this.content = other.content;
+        this.preview = other.preview;
+        this.createdAt = other.createdAt;
+        this.salt = other.salt;
+        this.isSecret = salt != null;
+    }
+
     public long getId() {
         return id;
     }

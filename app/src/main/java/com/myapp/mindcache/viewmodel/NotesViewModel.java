@@ -135,21 +135,14 @@ public class NotesViewModel extends AndroidViewModel {
         char[] password = dto.isSecret() ? getPasswordOrThrow() : null;
 
         return repository.insertNote(dto, password)
-                .doOnSuccess(id -> {
-                    Log.i(TAG, "Successfully added note with id: " + id);
-                    Note note = NodeMapper.fromDto(dto);
-                    note.setId(id);
-                    addToCache(note);
-                })
-                .ignoreElement() // Преобразуем Single<Long> в Completable
-                .doOnComplete(() -> {
+                .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
+                    addToCache(note);           // ← Кэшируем готовую Note
+                    Log.i(TAG, "Successfully added note with id: " + note.getId());
+                    return Completable.complete();
                 })
                 .doOnError(error -> {
                     Log.e(TAG, "Error adding note", error);
                     errors.postValue(error);
-                })
-                .doOnDispose(() -> {
-                    // Пароль очистит репозиторий
                 });
     }
 
@@ -160,12 +153,15 @@ public class NotesViewModel extends AndroidViewModel {
         char[] password = getPasswordOrThrow();
 
         return repository.updateNote(updateDto, password)
-                .doOnComplete(() -> addToCache(updateDto))
+                .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
+                    addToCache(note);           // ← Кэшируем готовую Note
+                    Log.i(TAG, "Successfully updated note with id: " + note.getId());
+                    return Completable.complete();
+                })
                 .doOnError(error -> {
                     Log.e(TAG, "Error updating note", error);
                     errors.postValue(error);
-                })
-                .doOnDispose(() -> { });
+                });
     }
 
     public Completable deleteNote(long id) {
@@ -196,23 +192,9 @@ public class NotesViewModel extends AndroidViewModel {
         }
     }
 
-    private void addToCache(NoteUpdateDto updateDto) {
-        Map<Long, NotePreview> current = decryptedNotes.getValue();
-        if (current != null) {
-            NotePreview note = current.get(updateDto.getId());
-            if (note != null) {
-                note.setTitle(updateDto.getTitle());
-                note.setPreview(updateDto.getContent());
-                note.setSecret(updateDto.isSecret());
-                decryptedNotes.postValue(current);
-            }
-        }
-    }
-
     private void addToCache(Note note) {
         addToCache(NodeMapper.toPreview(note));
     }
-
 
     private void removeFromCache(long id) {
         Map<Long, NotePreview> current = decryptedNotes.getValue();

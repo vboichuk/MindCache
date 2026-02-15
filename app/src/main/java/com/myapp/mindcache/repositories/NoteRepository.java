@@ -63,7 +63,7 @@ public class NoteRepository {
     }
 
 
-    public Single<Long> insertNote(NoteCreateDto dto, char[] password) {
+    public Single<Note> insertNote(NoteCreateDto dto, char[] password) {
         // Валидация входных данных
         if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Single.error(new IllegalArgumentException("Note data is invalid"));
@@ -71,10 +71,11 @@ public class NoteRepository {
 
         return Single.fromCallable(() -> {
                 try {
-                    Note note = NodeMapper.fromDto(dto);
-                    note.setPreview(dto.getContent());
-                    note = encryptNoteIfNeeded(password, note);
-                    return noteDao.insert(note);
+                    Note decrypted = NodeMapper.fromDto(dto);
+                    decrypted.setPreview(dto.getContent());
+                    long id = noteDao.insert(encryptNoteIfNeeded(password, decrypted));
+                    decrypted.setId(id);
+                    return decrypted;
                 } catch (Exception e) {
                     Log.e(TAG, "Insert failed: " + e.getMessage());
                     throw new SecurityException("Encryption error", e);
@@ -83,7 +84,7 @@ public class NoteRepository {
                 }
             })
             .subscribeOn(Schedulers.io())
-            .doOnSuccess(id -> Log.d(TAG, "Inserted note with ID: " + id))
+            .doOnSuccess(note -> Log.d(TAG, "Inserted note with ID: " + note.getId()))
             .doOnError(e -> Log.e(TAG, "Error inserting note", e));
     }
 
@@ -108,27 +109,27 @@ public class NoteRepository {
                 .doOnError(e -> Log.e(TAG, "Error in deleteNote", e));
     }
 
-    public Completable updateNote(NoteUpdateDto dto, char[] password) {
-        validatePassword(password);
+    public Single<Note> updateNote(NoteUpdateDto dto, char[] password) {
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
-            return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
+            return Single.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
+        validatePassword(password);
 
-        return Completable.fromAction(() -> {
+        return Single.fromCallable(() -> {
                     try {
-                        Note existingNote = noteDao.getById(dto.getId());
-                        if (existingNote == null) {
+                        Note existing = noteDao.getById(dto.getId());
+                        if (existing == null) {
                             throw new IllegalArgumentException("Note with ID " + dto.getId() + " not found");
                         }
 
-                        existingNote.setTitle(dto.getTitle());
-                        existingNote.setContent(dto.getContent());
-                        existingNote.setPreview(getPreview(dto.getContent()));
-                        existingNote.setSecret(dto.isSecret());
-                        existingNote = encryptNoteIfNeeded(password, existingNote);
-                        noteDao.update(existingNote);
-
+                        Note updated = new Note(existing);
+                        updated.setTitle(dto.getTitle());
+                        updated.setContent(dto.getContent());
+                        updated.setPreview(getPreview(dto.getContent()));
+                        updated.setSecret(dto.isSecret());
+                        noteDao.update(encryptNoteIfNeeded(password, updated));
                         Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
+                        return updated;
                     } catch (UserNotAuthenticatedException e) {
                         Log.e(TAG, "Authentication expired", e);
                         throw e;
