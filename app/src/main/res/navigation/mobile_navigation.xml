@@ -12,17 +12,17 @@
         android:label="AuthFragment">
         <action
             android:id="@+id/action_auth_to_diary"
-            app:destination="@id/nav_diary"
+            app:destination="@id/nav_notes_list"
             app:popUpTo="@id/nav_auth"
             app:popUpToInclusive="true"
             />
     </fragment>
 
     <fragment
-        android:id="@+id/nav_diary"
+        android:id="@+id/nav_notes_list"
         android:name="com.myapp.mindcache.ui.notes.NoteListFragment"
-        android:label="@string/menu_diary"
-        tools:layout="@layout/fragment_diary" >
+        android:label="@string/menu_notes_list"
+        tools:layout="@layout/fragment_notes_list" >
         <!-- Action для перехода на NoteDetailFragment -->
         <action
             android:id="@+id/action_diary_to_noteDetail"
@@ -48,9 +48,9 @@
         tools:layout="@layout/fragment_gallery" />
 
     <fragment
-        android:id="@+id/nav_slideshow"
-        android:name="com.myapp.mindcache.ui.slideshow.SlideshowFragment"
-        android:label="@string/menu_slideshow"
-        tools:layout="@layout/fragment_slideshow" />
+        android:id="@+id/nav_import_export"
+        android:name="com.myapp.mindcache.ui.slideshow.ImportExportFragment"
+        android:label="@string/menu_import_export"
+        tools:layout="@layout/fragment_import_export" />
 
 </navigation>

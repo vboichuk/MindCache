@@ -16,12 +16,7 @@
         android:layout_height="120dp"
         android:layout_marginBottom="32dp"
         android:contentDescription="@string/app_name"
-        android:src="@drawable/ic_head"
-        app:layout_constraintBottom_toTopOf="@+id/btn_auth"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        android:src="@drawable/ic_head" />
 
     <LinearLayout
         android:id="@+id/input_password_layout"
@@ -30,13 +25,13 @@
         android:orientation="vertical"
         android:layout_gravity="center_horizontal">
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/input_password"
             android:textAlignment="center" />
 
-        <EditText
+        <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/edittext_password"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -45,23 +40,15 @@
             android:textSize="26sp" />
 
         <!-- Кнопка авторизации -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_auth"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/menu_auth"
             android:textAllCaps="false"
-            android:textColor="@color/white"
             android:textSize="16sp"
-            app:backgroundTint="@color/design_default_color_primary"
-            app:cornerRadius="8dp"
-            app:iconGravity="start"
-            app:iconPadding="8dp"
-            app:iconTint="@color/white"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/logo" />
+            app:iconGravity="start" />
 
     </LinearLayout>
 

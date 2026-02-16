@@ -25,7 +25,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
-import com.myapp.mindcache.databinding.FragmentDiaryBinding;
+import com.myapp.mindcache.databinding.FragmentNotesListBinding;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
@@ -47,7 +47,7 @@ public class NoteListFragment extends Fragment {
     private static final String TAG = NoteListFragment.class.getSimpleName();
     private static final int PREFETCH_LIMIT = 10;
 
-    private FragmentDiaryBinding fragmentDiaryBinding;
+    private FragmentNotesListBinding binding;
     private NotesViewModel viewModel;
     private NoteListAdapter noteListAdapter;
     private BottomSheetDialog bottomSheetDialog;
@@ -56,9 +56,8 @@ public class NoteListFragment extends Fragment {
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        fragmentDiaryBinding = FragmentDiaryBinding.inflate(inflater, container, false);
-        Log.i(TAG, "this: " + this);
-        return fragmentDiaryBinding.getRoot();
+        binding = FragmentNotesListBinding.inflate(inflater, container, false);
+        return binding.getRoot();
     }
 
     @Override
@@ -79,11 +78,11 @@ public class NoteListFragment extends Fragment {
 
 
     private void setupClickListeners() {
-        fragmentDiaryBinding.addButton.setOnClickListener(v -> this.onAddClick());
+        binding.addButton.setOnClickListener(v -> this.onAddClick());
     }
 
     private void setupRecyclerView() {
-        RecyclerView recyclerView = fragmentDiaryBinding.recyclerView;
+        RecyclerView recyclerView = binding.recyclerView;
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         noteListAdapter = new NoteListAdapter(this::onNoteClick, this::onNoteVisible, this::onNoteLongClick);
         recyclerView.setAdapter(noteListAdapter);
@@ -104,7 +103,7 @@ public class NoteListFragment extends Fragment {
             if (error != null) {
                 Log.e(TAG, "Error occurred", error);
                 if (isAdded()) {
-                    Snackbar.make(fragmentDiaryBinding.getRoot(),
+                    Snackbar.make(binding.getRoot(),
                                     R.string.error_loading_notes,
                                     Snackbar.LENGTH_LONG)
                             .setAction(R.string.retry, v -> {
@@ -151,9 +150,9 @@ public class NoteListFragment extends Fragment {
 
 
     private void onAddClick() {
-        Log.d(TAG, "onAddClick");
-        NavController navController = Navigation.findNavController(requireView());
-        navController.navigate(R.id.action_diary_to_noteDetail);
+         Log.d(TAG, "onAddClick");
+         NavController navController = Navigation.findNavController(requireView());
+         navController.navigate(R.id.action_diary_to_noteDetail);
     }
 
     private void onNoteClick(NotePreview notePreview) {
@@ -172,6 +171,7 @@ public class NoteListFragment extends Fragment {
 
     private void onNoteLongClick(NotePreview notePreview) {
         showBottomSheet(notePreview);
+        // AppDatabase.exportDatabase(requireContext());
     }
 
 
@@ -181,9 +181,8 @@ public class NoteListFragment extends Fragment {
             return;
         }
 
-        bottomSheetDialog = new BottomSheetDialog(requireContext());
+        View sheetLayoutView = LayoutInflater.from(context).inflate(R.layout.bottom_sheet_layout, null);
 
-        View sheetLayoutView = View.inflate(context, R.layout.bottom_sheet_layout, null);
         Button btnDelete = sheetLayoutView.findViewById(R.id.btnDelete);
 
         btnDelete.setOnClickListener(v -> {
@@ -191,6 +190,7 @@ public class NoteListFragment extends Fragment {
             bottomSheetDialog.dismiss();
         });
 
+        bottomSheetDialog = new BottomSheetDialog(requireContext());
         bottomSheetDialog.setContentView(sheetLayoutView);
         bottomSheetDialog.setOnDismissListener(dialog -> bottomSheetDialog = null);
 
@@ -252,7 +252,7 @@ public class NoteListFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         disposables.clear();
-        fragmentDiaryBinding = null;
+        binding = null;
     }
 
     @Override

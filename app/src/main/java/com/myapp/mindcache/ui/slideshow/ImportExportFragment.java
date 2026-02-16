@@ -10,18 +10,18 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.myapp.mindcache.databinding.FragmentSlideshowBinding;
+import com.myapp.mindcache.databinding.FragmentImportExportBinding;
 
-public class SlideshowFragment extends Fragment {
+public class ImportExportFragment extends Fragment {
 
-    private FragmentSlideshowBinding binding;
+    private FragmentImportExportBinding binding;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         SlideshowViewModel slideshowViewModel =
                 new ViewModelProvider(this).get(SlideshowViewModel.class);
 
-        binding = FragmentSlideshowBinding.inflate(inflater, container, false);
+        binding = FragmentImportExportBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView textView = binding.textSlideshow;

@@ -4,12 +4,16 @@ import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
@@ -57,7 +61,7 @@ public class NoteDetailFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        setupClickListeners();
+        setupActions();
         initViewModel();
 
         if (getArguments() != null) {
@@ -69,16 +73,27 @@ public class NoteDetailFragment extends Fragment {
         }
     }
 
-    private void setupClickListeners() {
-
-        binding.noteDetailsToolbar.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == R.id.action_save) {
-                saveNote();
-                return true;
+    private void setupActions() {
+        requireActivity().addMenuProvider(new MenuProvider() {
+            @Override
+            public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
+                menuInflater.inflate(R.menu.note_details_toolbar_menu, menu);
             }
-            return false;
-        });
+
+            @Override
+            public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
+                int id = menuItem.getItemId();
+
+                if (id == R.id.action_save) {
+                    saveNote();
+                    return true;
+                }
+                return false;
+            }
+        }, getViewLifecycleOwner());
     }
+
+
 
     private void initViewModel() {
         MainActivity activity = (MainActivity) requireActivity();
