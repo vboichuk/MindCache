@@ -8,13 +8,11 @@ import java.util.Base64;
 import javax.crypto.SecretKey;
 
 public class NoteEncryptionService {
-    private static final String TAG = "NoteEncryptionService";
+    private static final String TAG = NoteEncryptionService.class.getSimpleName();
     private final KeyGenerator keyGenerator;
-    private final CryptoHelper cryptoHelper;
 
-    public NoteEncryptionService(KeyGenerator keyGenerator, CryptoHelper cryptoHelper) {
+    public NoteEncryptionService(KeyGenerator keyGenerator) {
         this.keyGenerator = keyGenerator;
-        this.cryptoHelper = cryptoHelper;
     }
 
     public Note encryptNote(Note note, char[] password) throws Exception {
@@ -24,9 +22,9 @@ public class NoteEncryptionService {
         byte[] salt = keyGenerator.generateSalt();
         SecretKey key = keyGenerator.generateDataKey(password, salt);
 
-        String title = cryptoHelper.encrypt(note.getTitle(), key);
-        String content = cryptoHelper.encrypt(note.getContent(), key);
-        String preview = cryptoHelper.encrypt(note.getPreview(), key);
+        String title = CryptoHelper.encrypt(note.getTitle(), key);
+        String content = CryptoHelper.encrypt(note.getContent(), key);
+        String preview = CryptoHelper.encrypt(note.getPreview(), key);
 
         return new Note(
                 note.getId(),
@@ -47,8 +45,8 @@ public class NoteEncryptionService {
 
         return new Note(
                 encryptedNote.getId(),
-                cryptoHelper.decrypt(encryptedNote.getTitle(), key),
-                cryptoHelper.decrypt(encryptedNote.getContent(), key),
+                new String(CryptoHelper.decrypt(encryptedNote.getTitle(), key)),
+                new String(CryptoHelper.decrypt(encryptedNote.getContent(), key)),
                 encryptedNote.getCreatedAt(),
                 true);
     }
@@ -60,8 +58,10 @@ public class NoteEncryptionService {
         byte[] salt = Base64.getDecoder().decode(encryptedNote.getSalt());
         SecretKey key = keyGenerator.generateDataKey(password, salt);
 
-        String title = cryptoHelper.decrypt(encryptedNote.getTitle(), key);
-        String preview = encryptedNote.getPreview().isEmpty() ? "" : cryptoHelper.decrypt(encryptedNote.getPreview(), key);
+        String title = new String(CryptoHelper.decrypt(encryptedNote.getTitle(), key));
+        String preview = encryptedNote.getPreview().isEmpty()
+                ? ""
+                : new String(CryptoHelper.decrypt(encryptedNote.getPreview(), key));
 
         NotePreview notePreview = new NotePreview(encryptedNote);
         notePreview.setTitle(title);

@@ -1,6 +1,7 @@
 package com.myapp.mindcache.viewmodel;
 
 import android.app.Application;
+import android.security.keystore.UserNotAuthenticatedException;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -11,12 +12,12 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
+import com.myapp.mindcache.exception.NoPasswordSavedException;
 import com.myapp.mindcache.mappers.NodeMapper;
 import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.repositories.NoteRepository;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
-import com.myapp.mindcache.security.CryptoHelper;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
@@ -57,8 +58,7 @@ public class NotesViewModel extends AndroidViewModel {
         this.passwordManager = passwordManager;
         try {
             KeyGenerator generator = new KeyGeneratorImpl();
-            CryptoHelper cryptoHelper = new CryptoHelper();
-            NoteEncryptionService service = new NoteEncryptionService(generator, cryptoHelper);
+            NoteEncryptionService service = new NoteEncryptionService(generator);
             repository = new NoteRepository(application, service);
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize NoteRepository", e);
@@ -100,6 +100,7 @@ public class NotesViewModel extends AndroidViewModel {
         markAsLoading(noteId);
 
         char[] password = getPasswordOrThrow();
+
         disposables.add(
                 repository.getDecryptedPreview(noteId, password)
                         .subscribeOn(Schedulers.io())
@@ -177,9 +178,13 @@ public class NotesViewModel extends AndroidViewModel {
 
     private char[] getPasswordOrThrow() {
         try {
-            return passwordManager.getUserPassword().toCharArray();
+            return passwordManager.getUserPassword();
         } catch (AEADBadTagException e) {
             throw new RuntimeException("AEADBadTagException in getPasswordOrThrow");
+        } catch (NoPasswordSavedException e) {
+            throw new RuntimeException(e);
+        } catch (UserNotAuthenticatedException e) {
+            throw new RuntimeException(e);
         }
     }
 

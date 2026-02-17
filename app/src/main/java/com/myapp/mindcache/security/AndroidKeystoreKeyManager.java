@@ -2,7 +2,6 @@ package com.myapp.mindcache.security;
 
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
-import android.util.Log;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -22,7 +21,7 @@ public class AndroidKeystoreKeyManager {
         this.keyStore.load(null);
     }
 
-    public SecretKey getOrCreateKey(String keyAlias) throws Exception {
+    public SecretKey getSecretKey(String keyAlias) throws Exception {
         // Log.i(TAG, "getOrCreateKey()");
 
         if (!keyStore.containsAlias(keyAlias)) {
@@ -45,7 +44,7 @@ public class AndroidKeystoreKeyManager {
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
                 .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(600)
+                .setUserAuthenticationValidityDurationSeconds(120)
                 // .setIsStrongBoxBacked(true) // Только для устройств с StrongBox
                 .build();
 

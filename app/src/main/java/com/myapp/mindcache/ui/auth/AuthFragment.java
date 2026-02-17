@@ -2,13 +2,11 @@ package com.myapp.mindcache.ui.auth;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.text.Editable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,6 +18,7 @@ import androidx.navigation.Navigation;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
+import com.myapp.mindcache.databinding.FragmentAuthBinding;
 import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.PasswordManager;
 import com.myapp.mindcache.security.PasswordManagerImpl;
@@ -29,19 +28,18 @@ import javax.crypto.AEADBadTagException;
 
 public class AuthFragment extends Fragment {
 
-    private static final String TAG = "AuthFragment";
-    private Button btnLogin;
-    private EditText editPassword;
-    private LinearLayout passwordLayout;
+    private static final String TAG = AuthFragment.class.getSimpleName();
+    private static final int MIN_PASSWORD_LENGTH = 4;
+
     private final BiometricAuthHelper authHelper = new BiometricAuthHelper();
     private PasswordManager passwordManager;
-
-    private static final int MIN_PASSWORD_LENGTH = 4;
+    private FragmentAuthBinding binding;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_auth, container, false);
+        binding = FragmentAuthBinding.inflate(inflater, container, false);
+        return binding.getRoot();
     }
 
     @Override
@@ -59,18 +57,23 @@ public class AuthFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        btnLogin = view.findViewById(R.id.btn_auth);
-        editPassword = view.findViewById(R.id.edittext_password);
-        passwordLayout = view.findViewById(R.id.input_password_layout);
-
-        passwordLayout.setVisibility(passwordManager.isPasswordSet() ? View.GONE : View.VISIBLE);
-
+        updateKeysIconVisibility();
         setupClickListeners();
     }
 
+    private void updateKeysIconVisibility() {
+        binding.imageKeys.setVisibility(passwordManager.isPasswordSet() ? View.VISIBLE : View.GONE);
+    }
+
     private void setupClickListeners() {
-        btnLogin.setOnClickListener(v -> onLoginClick());
+        binding.btnLogin.setOnClickListener(v -> onLoginClick());
+        binding.logo.setOnClickListener(v -> resetPassword());
+    }
+
+    private void resetPassword() {
+        passwordManager.resetPassword();
+        updateKeysIconVisibility();
+        Toast.makeText(getContext(), "Password was reset", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -80,12 +83,13 @@ public class AuthFragment extends Fragment {
         Log.i(TAG, passwordSet ? "password is set" : "password is NOT set");
 
         if (passwordSet) {
-            showBiometricPrompt();
+            // showBiometricPrompt();
         }
     }
 
     private void onLoginClick() {
-        if (editPassword.getText().length() < MIN_PASSWORD_LENGTH) {
+        char[] pass = binding.edittextPassword.getText().toString().toCharArray();
+        if (pass.length < MIN_PASSWORD_LENGTH) {
             Toast.makeText(getContext(), "Password too short", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -99,18 +103,16 @@ public class AuthFragment extends Fragment {
             public void onSuccess() {
                 boolean isPasswordSet = passwordManager.isPasswordSet();
                 if (!isPasswordSet) {
-                    passwordManager.setUserPassword(editPassword.getText().toString().toCharArray());
+                    char[] pass = binding.edittextPassword.getText().toString().toCharArray();
+                    passwordManager.setUserPassword(pass);
                 }
 
-                try {
-                    checkPasswordIsSet();
-                    navigateToDiary();
-                } catch (AEADBadTagException e) {
-                    Log.e(TAG, "e.getCause() = " + e.getCause());
-                    e.printStackTrace();
-                    passwordManager.resetPassword();
-                    showPasswordPrompt();
-                }
+                navigateToDiary();
+
+//                } catch (AEADBadTagException e) {
+//                    Log.e(TAG, "e.getCause() = " + e.getCause());
+//                    e.printStackTrace();
+//                }
             }
 
             @Override
@@ -143,17 +145,5 @@ public class AuthFragment extends Fragment {
         // После успешной проверки учетных данных
         NavController navController = Navigation.findNavController(requireView());
         navController.navigate(R.id.action_auth_to_diary);
-    }
-
-    /** @noinspection unused*/
-    private void checkPasswordIsSet() throws AEADBadTagException {
-        String userPassword;
-        userPassword = passwordManager.getUserPassword();
-        // Log.d(TAG, "userPassword: [" + userPassword + "]");
-    }
-
-    private void showPasswordPrompt() {
-        Log.d(TAG, "AuthFragment.showPasswordPrompt");
-        passwordLayout.setVisibility(View.VISIBLE);
     }
 }

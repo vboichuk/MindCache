@@ -18,6 +18,7 @@
 
         <!-- Для AppBar можно настроить отдельно -->
         <item name="toolbarStyle">@style/ActionBarStyle</item>
+        <item name="colorOnSurface">@color/black</item>
 
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.MaterialComponents.BottomSheetDialog</item>
 
