@@ -16,6 +16,7 @@ import javax.crypto.SecretKey;
 public class PasswordManagerImpl implements PasswordManager {
     private static final String TAG = PasswordManagerImpl.class.getSimpleName();
     private static final String KEY_ALIAS = "user_password_key";
+    private static final String PREFS_ENCRYPTED_KEY = "encrypted_master_key";
     private final Context context;
 
     private final AndroidKeystoreKeyManager keystoreKeyManager;
@@ -74,26 +75,26 @@ public class PasswordManagerImpl implements PasswordManager {
         SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
         prefs
                 .edit()
-                .remove(KEY_ALIAS)
+                .remove(PREFS_ENCRYPTED_KEY)
                 .apply();
     }
 
     @Override
     public boolean isPasswordSet() {
         SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
-        return prefs.contains(KEY_ALIAS);
+        return prefs.contains(PREFS_ENCRYPTED_KEY);
     }
 
     private String loadEncryptedPassword() {
         SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
-        return prefs.getString(KEY_ALIAS, null);
+        return prefs.getString(PREFS_ENCRYPTED_KEY, null);
     }
 
     private void saveEncryptedPassword(String password) {
         SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
         prefs
                 .edit()
-                .putString(KEY_ALIAS, password)
+                .putString(PREFS_ENCRYPTED_KEY, password)
                 .apply();
     }
 }

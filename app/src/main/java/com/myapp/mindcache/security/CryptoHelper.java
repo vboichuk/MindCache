@@ -10,7 +10,10 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-public abstract class CryptoHelper {
+public final class CryptoHelper {
+
+    private CryptoHelper() { }
+
     private static final String TAG = CryptoHelper.class.getSimpleName();
     private static final String AES_MODE = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;
@@ -30,18 +33,22 @@ public abstract class CryptoHelper {
         cipher.init(Cipher.ENCRYPT_MODE, key);
 
         byte[] iv = cipher.getIV();
+        if (iv.length != IV_LENGTH) {
+            throw new SecurityException("Invalid IV length from cipher");
+        }
+
         byte[] encryptedBytes = cipher.doFinal(bytes);
 
         byte[] combined = new byte[iv.length + encryptedBytes.length];
         System.arraycopy(iv, 0, combined, 0, iv.length);
         System.arraycopy(encryptedBytes, 0, combined, iv.length, encryptedBytes.length);
-        return Base64.encodeToString(combined, Base64.DEFAULT);
+        return Base64.encodeToString(combined, Base64.NO_WRAP);
     }
 
 
     public static char[] decrypt(String encryptedData, SecretKey key) throws Exception {
-
-        byte[] combined = Base64.decode(encryptedData, Base64.DEFAULT);
+        validateKey(key);
+        byte[] combined = Base64.decode(encryptedData, Base64.NO_WRAP);
         byte[] iv = new byte[IV_LENGTH];
         byte[] encryptedBytes = new byte[combined.length - IV_LENGTH];
 
@@ -53,6 +60,16 @@ public abstract class CryptoHelper {
 
         byte[] bytes = cipher.doFinal(encryptedBytes);
         return convertBytesToChars(bytes);
+    }
+
+
+    private static void validateKey(SecretKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Key cannot be null");
+        }
+        if (!"AES".equals(key.getAlgorithm())) {
+            throw new IllegalArgumentException("Key must be AES algorithm");
+        }
     }
 
     private static char[] convertBytesToChars(byte[] bytes) {
