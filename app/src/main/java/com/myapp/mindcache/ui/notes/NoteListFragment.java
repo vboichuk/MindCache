@@ -26,6 +26,7 @@ import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentNotesListBinding;
+import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
@@ -70,13 +71,6 @@ public class NoteListFragment extends Fragment {
         observeViewModel();
     }
 
-    @Override
-    public void onPause() {
-        Log.i(TAG, "onPause");
-        super.onPause();
-    }
-
-
     private void setupClickListeners() {
         binding.addButton.setOnClickListener(v -> this.onAddClick());
     }
@@ -91,7 +85,7 @@ public class NoteListFragment extends Fragment {
 
     private void initViewModel() {
         MainActivity activity = (MainActivity) requireActivity();
-        NotesViewModelFactory factory = activity.getViewModelFactory();
+        NotesViewModelFactory factory = activity.getNotesViewModelFactory();
         viewModel = new ViewModelProvider(requireActivity(), factory).get(NotesViewModel.class);
     }
 
@@ -145,12 +139,19 @@ public class NoteListFragment extends Fragment {
                 .filter(id -> cachedPreviews == null || !cachedPreviews.containsKey(id))
                 .limit(PREFETCH_LIMIT)
                 .collect(Collectors.toList());
-        viewModel.prefetchNotes(missing);
+        try {
+            viewModel.prefetchNotes(missing);
+//        } catch (UserNotAuthenticatedException e) {
+//            throw new RuntimeException(e);
+        } catch (AuthError e) {
+            Log.e(TAG, e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
     private void onAddClick() {
-         Log.d(TAG, "onAddClick");
          NavController navController = Navigation.findNavController(requireView());
          navController.navigate(R.id.action_diary_to_noteDetail);
     }
@@ -166,12 +167,17 @@ public class NoteListFragment extends Fragment {
     }
 
     private void onNoteVisible(long l) {
-        viewModel.prefetchNote(l);
+        try {
+            viewModel.prefetchNote(l);
+//        } catch (UserNotAuthenticatedException e) {
+//            throw new RuntimeException(e);
+        } catch (AuthError | Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void onNoteLongClick(NotePreview notePreview) {
         showBottomSheet(notePreview);
-        // AppDatabase.exportDatabase(requireContext());
     }
 
 

@@ -49,7 +49,7 @@
 
     <fragment
         android:id="@+id/nav_import_export"
-        android:name="com.myapp.mindcache.ui.slideshow.ImportExportFragment"
+        android:name="com.myapp.mindcache.ui.importexport.ImportExportFragment"
         android:label="@string/menu_import_export"
         tools:layout="@layout/fragment_import_export" />
 

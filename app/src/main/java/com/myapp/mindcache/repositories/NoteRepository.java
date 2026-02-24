@@ -42,27 +42,23 @@ public class NoteRepository {
         return noteDao.getNotesMetadata(20);
     }
 
-    public Single<NotePreview> getDecryptedPreview(long noteId, char[] password) {
-        validatePassword(password);
+    public Single<NotePreview> getDecryptedPreview(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedPreviewById(noteId)
                 .map(encryptedNote -> encryptedNote.isEncrypted()
-                        ? encryptionService.decryptPreview(encryptedNote, password)
+                        ? encryptionService.decryptPreview(encryptedNote, masterKey)
                         : encryptedNote)
-                .subscribeOn(Schedulers.io())
-                .doOnDispose(() -> clearPassword(password));
+                .subscribeOn(Schedulers.io());
     }
 
-    public Single<Note> getDecryptedNote(long noteId, char[] password) {
-        validatePassword(password);
+    public Single<Note> getDecryptedNote(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedNoteById(noteId)
                 .map(encryptedNote -> encryptedNote.isEncrypted()
-                        ? encryptionService.decryptNote(encryptedNote, password)
+                        ? encryptionService.decryptNote(encryptedNote, masterKey)
                         : encryptedNote)
-                .subscribeOn(Schedulers.io())
-                .doOnDispose(() -> clearPassword(password));
+                .subscribeOn(Schedulers.io());
     }
 
-
+    @Deprecated
     public Single<Note> insertNote(NoteCreateDto dto, char[] password) {
         // Валидация входных данных
         if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
@@ -88,6 +84,29 @@ public class NoteRepository {
             .doOnError(e -> Log.e(TAG, "Error inserting note", e));
     }
 
+    public Single<Note> insertNote(NoteCreateDto dto, byte[] masterKey) {
+        // Валидация входных данных
+        if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
+            return Single.error(new IllegalArgumentException("Note data is invalid"));
+        }
+
+        return Single.fromCallable(() -> {
+                    try {
+                        Note decrypted = NodeMapper.fromDto(dto);
+                        decrypted.setPreview(dto.getContent());
+                        long id = noteDao.insert(encryptNoteIfNeeded(masterKey, decrypted));
+                        decrypted.setId(id);
+                        return decrypted;
+                    } catch (Exception e) {
+                        Log.e(TAG, "Insert failed: " + e.getMessage());
+                        throw new SecurityException("Encryption error", e);
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .doOnSuccess(note -> Log.d(TAG, "Inserted note with ID: " + note.getId()))
+                .doOnError(e -> Log.e(TAG, "Error inserting note", e));
+    }
+
     private String getPreview(String content) {
         if (content == null || content.isBlank())
             return "";
@@ -109,11 +128,10 @@ public class NoteRepository {
                 .doOnError(e -> Log.e(TAG, "Error in deleteNote", e));
     }
 
-    public Single<Note> updateNote(NoteUpdateDto dto, char[] password) {
+    public Single<Note> updateNote(NoteUpdateDto dto, byte[] masterKey) {
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Single.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
-        validatePassword(password);
 
         return Single.fromCallable(() -> {
                     try {
@@ -127,7 +145,7 @@ public class NoteRepository {
                         updated.setContent(dto.getContent());
                         updated.setPreview(getPreview(dto.getContent()));
                         updated.setSecret(dto.isSecret());
-                        noteDao.update(encryptNoteIfNeeded(password, updated));
+                        noteDao.update(encryptNoteIfNeeded(masterKey, updated));
                         Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
                         return updated;
                     } catch (UserNotAuthenticatedException e) {
@@ -137,7 +155,7 @@ public class NoteRepository {
                         Log.e(TAG, "Error updating dto title and content", e);
                         throw new SecurityException("Failed to update dto", e);
                     } finally {
-                        clearPassword(password);
+                        // clearPassword(password);
                     }
                 })
                 .subscribeOn(Schedulers.io())
@@ -145,30 +163,19 @@ public class NoteRepository {
     }
 
 
+    @Deprecated
     private Note encryptNoteIfNeeded(char[] password, Note existingNote) throws Exception {
-        if (existingNote.isSecret()) {
-            return encryptionService.encryptNote(existingNote, password);
-        }
+//        if (existingNote.isSecret()) {
+//            return encryptionService.encryptNote(existingNote, password);
+//        }
         return existingNote;
     }
 
-    private Note decryptIfNeeded(char[] password, Note encryptedNote) throws Exception {
-        return encryptedNote.isEncrypted()
-                ? encryptionService.decryptNote(encryptedNote, password)
-                : encryptedNote;
-    }
-
-    private NotePreview decryptIfNeeded(char[] password, NotePreview encryptedNote) throws Exception {
-        return encryptedNote.isEncrypted()
-                ? encryptionService.decryptPreview(encryptedNote, password)
-                : encryptedNote;
-    }
-
-
-    private void validatePassword(char[] password) throws IllegalArgumentException {
-        if (password == null || password.length == 0) {
-            throw new IllegalArgumentException("Password cannot be empty");
+    private Note encryptNoteIfNeeded(byte[] masterKey, Note existingNote) throws Exception {
+        if (existingNote.isSecret()) {
+            return encryptionService.encryptNote(existingNote, masterKey);
         }
+        return existingNote;
     }
 
     private void clearPassword(char[] password) {
@@ -185,6 +192,5 @@ public class NoteRepository {
 
         noteDao.changeDatetime(id, millisBack);
     }
-
 
 }

@@ -24,6 +24,7 @@ import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentNoteDetailBinding;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
+import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.model.Note;
@@ -97,18 +98,23 @@ public class NoteDetailFragment extends Fragment {
 
     private void initViewModel() {
         MainActivity activity = (MainActivity) requireActivity();
-        NotesViewModelFactory factory = activity.getViewModelFactory();
+        NotesViewModelFactory factory = activity.getNotesViewModelFactory();
         viewModel = new ViewModelProvider(requireActivity(), factory).get(NotesViewModel.class);
     }
 
     private void loadNoteData(long noteId) {
-        Disposable disposable = viewModel.getNoteById(noteId)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        this::displayNote,
-                        error -> Log.e("Diary", "Failed to decrypt note: " + noteId, error)
-                );
+        Disposable disposable;
+        try {
+            disposable = viewModel.getNoteById(noteId)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            this::displayNote,
+                            error -> Log.e(TAG, "Failed to decrypt note: " + noteId, error)
+                    );
+        } catch (AuthError | Exception e) {
+            throw new RuntimeException(e);
+        }
         disposables.add(disposable);
     }
 
@@ -142,23 +148,28 @@ public class NoteDetailFragment extends Fragment {
 
     private void createNewNote(String title, String content, boolean secret) {
         NoteCreateDto noteCreateDto = new NoteCreateDto(title, content, secret, System.currentTimeMillis());
-        Disposable disposable = viewModel.addNote(noteCreateDto)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        () -> {
-                            if (isAdded()) {
-                                Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                navigateBack();
+        Disposable disposable;
+        try {
+            disposable = viewModel.addNote(noteCreateDto)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            () -> {
+                                if (isAdded()) {
+                                    Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
+                                    navigateBack();
+                                }
+                            },
+                            throwable -> {
+                                Log.e(TAG, "Error adding note", throwable);
+                                if (isAdded()) {
+                                    Toast.makeText(requireContext(), throwable.getMessage(), Toast.LENGTH_SHORT).show();
+                                }
                             }
-                        },
-                        throwable -> {
-                            Log.e(TAG, "Error adding note", throwable);
-                            if (isAdded()) {
-                                Toast.makeText(requireContext(), throwable.getMessage(), Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                );
+                    );
+        } catch (AuthError | Exception e) {
+            throw new RuntimeException(e);
+        }
         disposables.add(disposable);
     }
 
@@ -166,19 +177,24 @@ public class NoteDetailFragment extends Fragment {
 
         NoteUpdateDto updateDto = new NoteUpdateDto(noteId, title, content, isSecret);
 
-        Disposable disposable = viewModel.updateNote(updateDto)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        () -> {
-                            Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                            navigateBack();
-                        },
-                        error -> {
-                            if (error instanceof UserNotAuthenticatedException)
-                                Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
-                            else
-                                Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
+        Disposable disposable;
+        try {
+            disposable = viewModel.updateNote(updateDto)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            () -> {
+                                Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
+                                navigateBack();
+                            },
+                            error -> {
+                                if (error instanceof UserNotAuthenticatedException)
+                                    Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
+                                else
+                                    Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
+        } catch (AuthError | Exception e) {
+            throw new RuntimeException(e);
+        }
         disposables.add(disposable);
     }
 
@@ -187,7 +203,7 @@ public class NoteDetailFragment extends Fragment {
             NavController navController = Navigation.findNavController(requireView());
             navController.popBackStack();
         } catch (IllegalStateException e) {
-            Log.e(TAG, e.getMessage());
+            Log.e(TAG, e.getMessage(), e);
         }
     }
 
@@ -195,5 +211,13 @@ public class NoteDetailFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         disposables.clear();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (!disposables.isDisposed()) {
+            disposables.dispose();
+        }
     }
 }

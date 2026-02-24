@@ -45,6 +45,7 @@ public class AndroidKeystoreKeyManager {
                 .setKeySize(256)
                 .setUserAuthenticationRequired(true)
                 .setUserAuthenticationValidityDurationSeconds(120)
+                // .setUserConfirmationRequired(true)
                 // .setIsStrongBoxBacked(true) // Только для устройств с StrongBox
                 .build();
 

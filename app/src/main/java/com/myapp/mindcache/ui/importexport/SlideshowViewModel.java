@@ -1,4 +1,4 @@
-package com.myapp.mindcache.ui.slideshow;
+package com.myapp.mindcache.ui.importexport;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;

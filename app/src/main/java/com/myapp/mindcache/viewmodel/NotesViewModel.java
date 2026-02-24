@@ -12,7 +12,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
-import com.myapp.mindcache.exception.NoPasswordSavedException;
+import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.mappers.NodeMapper;
 import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.repositories.NoteRepository;
@@ -20,8 +20,9 @@ import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
+import com.myapp.mindcache.security.KeyManager;
+import com.myapp.mindcache.security.KeyManagerImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
-import com.myapp.mindcache.security.PasswordManager;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -30,8 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import javax.crypto.AEADBadTagException;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -49,13 +48,13 @@ public class NotesViewModel extends AndroidViewModel {
     private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
     private final MutableLiveData<Map<Long, NotePreview>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
 
-    private final PasswordManager passwordManager;
+    private final KeyManager keyManager;
 
     private final Set<Long> decryptingIds = ConcurrentHashMap.newKeySet();
 
-    public NotesViewModel(@NonNull Application application, @NonNull PasswordManager passwordManager) {
+    public NotesViewModel(@NonNull Application application, @NonNull KeyManager keyManager) {
         super(application);
-        this.passwordManager = passwordManager;
+        this.keyManager = keyManager;
         try {
             KeyGenerator generator = new KeyGeneratorImpl();
             NoteEncryptionService service = new NoteEncryptionService(generator);
@@ -87,22 +86,25 @@ public class NotesViewModel extends AndroidViewModel {
         return errors;
     }
 
-    public void prefetchNotes(List<Long> ids) {
+    public void prefetchNotes(List<Long> ids) throws AuthError, Exception {
         Log.i(TAG, "prefetchNotes: " + ids);
-        ids.forEach(this::prefetchNote);
+        for (Long noteId : ids) {
+            prefetchNote(noteId);
+        }
     }
 
-    public void prefetchNote(long noteId) {
+    public void prefetchNote(long noteId) throws AuthError, Exception {
 
         if (isNoteCached(noteId) || isNoteLoading(noteId)) {
             return;
         }
         markAsLoading(noteId);
 
-        char[] password = getPasswordOrThrow();
+        // char[] password = getPasswordOrThrow();
+        byte[] masterKey = keyManager.getMasterKey();
 
         disposables.add(
-                repository.getDecryptedPreview(noteId, password)
+                repository.getDecryptedPreview(noteId, masterKey)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
@@ -112,14 +114,14 @@ public class NotesViewModel extends AndroidViewModel {
                                 },
                                 error -> {
                                     unmarkAsDecrypting(noteId);
-                                    Log.e("Diary", "Failed to decrypt note: " + noteId, error);
+                                    Log.e(TAG, error.getMessage());
                                 }
                         )
         );
     }
 
-    public Single<Note> getNoteById(long noteId) {
-        char[] password = getPasswordOrThrow();
+    public Single<Note> getNoteById(long noteId) throws AuthError, Exception {
+        byte[] password = keyManager.getMasterKey();
         return repository.getDecryptedNote(noteId, password)
                 .map(note -> {
                     // addToCache(note);
@@ -127,15 +129,17 @@ public class NotesViewModel extends AndroidViewModel {
                 });
     }
 
-    public Completable addNote(NoteCreateDto dto) {
+    public Completable addNote(NoteCreateDto dto) throws Exception, AuthError {
 
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
-        char[] password = dto.isSecret() ? getPasswordOrThrow() : null;
+        byte[] masterKey = dto.isSecret()
+                ? keyManager.getMasterKey()
+                : null;
 
-        return repository.insertNote(dto, password)
+        return repository.insertNote(dto, masterKey)
                 .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
                     addToCache(note);           // ← Кэшируем готовую Note
                     Log.i(TAG, "Successfully added note with id: " + note.getId());
@@ -147,13 +151,12 @@ public class NotesViewModel extends AndroidViewModel {
                 });
     }
 
-    public Completable updateNote(NoteUpdateDto updateDto) {
+    public Completable updateNote(NoteUpdateDto updateDto) throws Exception, AuthError {
         if (TextUtils.isEmpty(updateDto.getTitle()) || TextUtils.isEmpty(updateDto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
-        char[] password = getPasswordOrThrow();
-
-        return repository.updateNote(updateDto, password)
+        byte[] masterKey = keyManager.getMasterKey();
+        return repository.updateNote(updateDto, masterKey)
                 .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
                     addToCache(note);           // ← Кэшируем готовую Note
                     Log.i(TAG, "Successfully updated note with id: " + note.getId());
@@ -174,20 +177,6 @@ public class NotesViewModel extends AndroidViewModel {
                 })
                 .doOnDispose(() -> { });
     }
-
-
-    private char[] getPasswordOrThrow() {
-        try {
-            return passwordManager.getUserPassword();
-        } catch (AEADBadTagException e) {
-            throw new RuntimeException("AEADBadTagException in getPasswordOrThrow");
-        } catch (NoPasswordSavedException e) {
-            throw new RuntimeException(e);
-        } catch (UserNotAuthenticatedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 
     private void addToCache(NotePreview newNote) {
         Map<Long, NotePreview> current = decryptedNotes.getValue();

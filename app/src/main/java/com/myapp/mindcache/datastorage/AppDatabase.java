@@ -11,7 +11,9 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
+import com.myapp.mindcache.dao.MasterKeyDao;
 import com.myapp.mindcache.dao.NoteDao;
+import com.myapp.mindcache.model.MasterKeyEntity;
 import com.myapp.mindcache.model.Note;
 
 import java.io.File;
@@ -21,13 +23,17 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
-@Database(entities = {Note.class}, version = 2)
+@Database(
+        entities = { Note.class, MasterKeyEntity.class },
+        version = 3)
 public abstract class AppDatabase extends RoomDatabase {
-    public abstract NoteDao noteDao();
 
-    private static final String TAG = AppDatabase.class.getSimpleName();
     private static volatile AppDatabase INSTANCE;
+    private static final String TAG = AppDatabase.class.getSimpleName();
     private static final String DB_NAME = "secure_notes_db";
+
+    public abstract NoteDao noteDao();
+    public abstract MasterKeyDao masterKeyDao();
 
     public static AppDatabase getInstance(Context context) {
         if (INSTANCE == null) {
@@ -54,8 +60,9 @@ public abstract class AppDatabase extends RoomDatabase {
                     }
                 })
                 .addMigrations(MIGRATION_1_2) // Добавляем все миграции
+                .addMigrations(MIGRATION_2_3) // Добавляем все миграции
                 .setJournalMode(JournalMode.TRUNCATE) // Оптимизация для записи
-                .fallbackToDestructiveMigration() // Только для разработки!
+                // .fallbackToDestructiveMigration() // Только для разработки!
                 .setQueryCallback((sqlQuery, bindArgs) ->
                                 // Log.d("ROOM_QUERY", "SQL: " + sqlQuery),
                                 {},
@@ -77,6 +84,24 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             // Реализация миграции при необходимости
             database.execSQL("ALTER TABLE notes ADD COLUMN preview TEXT DEFAULT ''");
+        }
+    };
+
+    // Миграции (пример для будущих версий)
+    private static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Реализация миграции при необходимости
+            database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `master_key` (" +
+                            "`id` INTEGER PRIMARY KEY NOT NULL UNIQUE CHECK (id = 1) , " +  // CHECK гарантирует id = 1
+                            "`key_salt` BLOB, " +
+                            "`encrypted_key` BLOB, " +
+                            "`iterations` INTEGER NOT NULL DEFAULT 100000, " +
+                            "`algorithm` TEXT DEFAULT 'PBKDF2WithHmacSHA256', " +
+                            "`created_at` INTEGER NOT NULL" +
+                            ")"
+            );
         }
     };
 

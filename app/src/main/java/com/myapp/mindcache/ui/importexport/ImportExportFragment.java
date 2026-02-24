@@ -1,4 +1,4 @@
-package com.myapp.mindcache.ui.slideshow;
+package com.myapp.mindcache.ui.importexport;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -7,10 +7,12 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.myapp.mindcache.databinding.FragmentImportExportBinding;
+import com.myapp.mindcache.datastorage.AppDatabase;
 
 public class ImportExportFragment extends Fragment {
 
@@ -27,6 +29,16 @@ public class ImportExportFragment extends Fragment {
         final TextView textView = binding.textSlideshow;
         slideshowViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        binding.btnExport.setOnClickListener(v -> { export(); });
+    }
+
+    private void export() {
+        AppDatabase.exportDatabase(getContext());
     }
 
     @Override

@@ -4,7 +4,11 @@ import javax.crypto.SecretKey;
 
 public interface KeyGenerator {
 
-    SecretKey generateDataKey(char[] userPassword, byte[] salt) throws Exception;
+    SecretKey deriveSecretKey(char[] userPassword, byte[] salt) throws Exception;
 
     byte[] generateSalt();
+
+    byte[] deriveKey(char[] password, byte[] salt) throws CryptoException;
+
+    byte[] generateMasterKey();
 }

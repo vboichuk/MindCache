@@ -25,4 +25,6 @@
     <string name="ask_delete_note">Delete note</string>
     <string name="is_secret">is secret</string>
     <string name="icon_secret_note">🔒</string>
+    <string name="menu_register">Register</string>
+    <string name="password">password</string>
 </resources>

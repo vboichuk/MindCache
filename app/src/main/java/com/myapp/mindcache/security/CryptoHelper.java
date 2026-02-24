@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 public final class CryptoHelper {
 
@@ -20,15 +21,15 @@ public final class CryptoHelper {
     private static final int IV_LENGTH = 12;
 
     public static String encrypt(String text, SecretKey key) throws Exception {
-        return encrypt(text.getBytes(StandardCharsets.UTF_8), key);
+        return toBase64(encrypt(text.getBytes(StandardCharsets.UTF_8), key));
     }
 
-    public static String encrypt(char[] characters, SecretKey key) throws Exception {
+    public static byte[] encrypt(char[] characters, SecretKey key) throws Exception {
         byte[] bytes = convertCharsToBytes(characters);
         return encrypt(bytes, key);
     }
 
-    public static String encrypt(byte[] bytes, SecretKey key) throws Exception {
+    public static byte[] encrypt(byte[] bytes, SecretKey key) throws Exception {
         Cipher cipher = Cipher.getInstance(AES_MODE);
         cipher.init(Cipher.ENCRYPT_MODE, key);
 
@@ -42,13 +43,23 @@ public final class CryptoHelper {
         byte[] combined = new byte[iv.length + encryptedBytes.length];
         System.arraycopy(iv, 0, combined, 0, iv.length);
         System.arraycopy(encryptedBytes, 0, combined, iv.length, encryptedBytes.length);
-        return Base64.encodeToString(combined, Base64.NO_WRAP);
+        return combined;
     }
 
 
     public static char[] decrypt(String encryptedData, SecretKey key) throws Exception {
-        validateKey(key);
         byte[] combined = Base64.decode(encryptedData, Base64.NO_WRAP);
+        byte[] decrypted = decrypt(combined, key);
+        return convertBytesToChars(decrypted);
+    }
+
+    public static char[] decrypt(String encryptedData, byte[] masterKey) throws Exception {
+        SecretKey key = new SecretKeySpec(masterKey, "AES");
+        return decrypt(encryptedData, key);
+    }
+
+    public static byte[] decrypt(byte[] combined, SecretKey key) throws Exception {
+        validateKey(key);
         byte[] iv = new byte[IV_LENGTH];
         byte[] encryptedBytes = new byte[combined.length - IV_LENGTH];
 
@@ -58,10 +69,8 @@ public final class CryptoHelper {
         Cipher cipher = Cipher.getInstance(AES_MODE);
         cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 
-        byte[] bytes = cipher.doFinal(encryptedBytes);
-        return convertBytesToChars(bytes);
+        return cipher.doFinal(encryptedBytes);
     }
-
 
     private static void validateKey(SecretKey key) {
         if (key == null) {
@@ -71,6 +80,7 @@ public final class CryptoHelper {
             throw new IllegalArgumentException("Key must be AES algorithm");
         }
     }
+
 
     private static char[] convertBytesToChars(byte[] bytes) {
         CharBuffer charBuffer = StandardCharsets.UTF_8.decode(
@@ -88,5 +98,9 @@ public final class CryptoHelper {
         byte[] result = new byte[byteBuffer.remaining()];
         byteBuffer.get(result);
         return result;
+    }
+
+    public static String toBase64(byte[] bytes) throws Exception {
+        return Base64.encodeToString(bytes, Base64.NO_WRAP);
     }
 }

@@ -8,11 +8,12 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.myapp.mindcache.security.KeyManager;
 
-public class NotesViewModelFactory implements ViewModelProvider.Factory {
+public class AuthViewModelFactory implements ViewModelProvider.Factory {
+
     private final Application application;
     private final KeyManager keyManager;
 
-    public NotesViewModelFactory(Application application, KeyManager keyManager) {
+    public AuthViewModelFactory(Application application, KeyManager keyManager) {
         this.application = application;
         this.keyManager = keyManager;
     }
@@ -20,6 +21,9 @@ public class NotesViewModelFactory implements ViewModelProvider.Factory {
     @NonNull
     @Override
     public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-        return (T) new NotesViewModel(application, keyManager);
+        if (modelClass.isAssignableFrom(AuthViewModel.class)) {
+            return (T) new AuthViewModel(application, keyManager);
+        }
+        throw new IllegalArgumentException("Unknown ViewModel class");
     }
 }

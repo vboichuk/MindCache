@@ -16,6 +16,7 @@ public class KeyGeneratorImpl implements KeyGenerator {
     private static final String PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256";
     private static final int ITERATION_COUNT = 100_000; // Рекомендуемое значение для 2023 года
     private static final int KEY_LENGTH = 256; // Длина ключа в битах (AES-256)
+    private static final int MASTER_KEY_LENGTH = 32; // 256 bits
     private static final int SALT_LENGTH = 16;
     private static final int MIN_SALT_LENGTH = 16;
 
@@ -28,34 +29,11 @@ public class KeyGeneratorImpl implements KeyGenerator {
      * @throws CryptoException Если возникла ошибка при генерации ключа
      */
     @Override
-    public SecretKey generateDataKey(char[] password, byte[] salt) throws CryptoException {
-
-        if (password == null || password.length == 0) {
-            throw new IllegalArgumentException("Password cannot be null or empty");
-        }
-
-        if (salt == null || salt.length < MIN_SALT_LENGTH) {
-            throw new CryptoException("Salt must be at least " + MIN_SALT_LENGTH + " bytes long");
-        }
-
-        try {
-            SecretKeyFactory factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
-            KeySpec spec = new PBEKeySpec(password, salt, ITERATION_COUNT, KEY_LENGTH);
-
-            byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-            SecretKey key = new SecretKeySpec(keyBytes, "AES");
-
-            Arrays.fill(keyBytes, (byte) 0);
-
-            return key;
-        } catch (NoSuchAlgorithmException e) {
-            throw new CryptoException("PBKDF2 algorithm not available", e);
-        } catch (InvalidKeySpecException e) {
-            throw new CryptoException("Invalid key specification", e);
-        } finally {
-            // Всегда очищаем пароль после использования
-            Arrays.fill(password, '\0');
-        }
+    public SecretKey deriveSecretKey(char[] password, byte[] salt) throws CryptoException {
+        byte[] keyBytes = deriveKey(password, salt);
+        SecretKey key = new SecretKeySpec(keyBytes, "AES");
+        // Arrays.fill(keyBytes, (byte) 0);
+        return key;
     }
 
     /**
@@ -68,5 +46,38 @@ public class KeyGeneratorImpl implements KeyGenerator {
         SecureRandom secureRandom = new SecureRandom();
         secureRandom.nextBytes(salt);
         return salt;
+    }
+
+    @Override
+    public byte[] generateMasterKey() {
+        byte[] key = new byte[MASTER_KEY_LENGTH];
+        SecureRandom secureRandom = new SecureRandom();
+        secureRandom.nextBytes(key);
+        return key;
+    }
+
+    @Override
+    public byte[] deriveKey(char[] password, byte[] salt) throws CryptoException {
+        if (password == null || password.length == 0) {
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
+
+        if (salt == null || salt.length < MIN_SALT_LENGTH) {
+            throw new CryptoException("Salt must be at least " + MIN_SALT_LENGTH + " bytes long");
+        }
+
+        try {
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
+            KeySpec spec = new PBEKeySpec(password, salt, ITERATION_COUNT, KEY_LENGTH);
+            return factory.generateSecret(spec).getEncoded();
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoException("PBKDF2 algorithm not available", e);
+        } catch (InvalidKeySpecException e) {
+            throw new CryptoException("Invalid key specification", e);
+        } finally {
+            // Всегда очищаем пароль после использования
+            // Arrays.fill(password, '\0');
+        }
     }
 }

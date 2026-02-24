@@ -5,7 +5,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
@@ -19,16 +18,18 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.myapp.mindcache.databinding.ActivityMainBinding;
+import com.myapp.mindcache.security.KeyGeneratorImpl;
+import com.myapp.mindcache.security.KeyManager;
+import com.myapp.mindcache.security.KeyManagerImpl;
+import com.myapp.mindcache.viewmodel.AuthViewModelFactory;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
-import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
-import com.myapp.mindcache.security.PasswordManager;
-import com.myapp.mindcache.security.PasswordManagerImpl;
 import com.myapp.mindcache.utils.KeyboardUtils;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
-    private NotesViewModelFactory viewModelFactory;
+    private NotesViewModelFactory notesViewModelFactory;
+    private AuthViewModelFactory authViewModelFactory;
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private AppBarConfiguration appBarConfiguration;
@@ -79,19 +80,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeFactory() {
-        // 1. Создаем фабрику ОДИН РАЗ
-        try {
-            AndroidKeystoreKeyManager secureKeyManager = new AndroidKeystoreKeyManager();
-            PasswordManager passwordManager = new PasswordManagerImpl(getApplication(), secureKeyManager);
-            viewModelFactory
-                    = new NotesViewModelFactory(getApplication(), passwordManager);
-
-
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to initialize", e);
-            Toast.makeText(this, "App initialization failed", Toast.LENGTH_LONG).show();
-            finish();
-        }
+        KeyManager keyManager = new KeyManagerImpl(getApplication(), new KeyGeneratorImpl());
+        notesViewModelFactory = new NotesViewModelFactory(getApplication(), keyManager);
+        authViewModelFactory = new AuthViewModelFactory(getApplication(), keyManager);
     }
 
     @Override
@@ -110,7 +101,18 @@ public class MainActivity extends AppCompatActivity {
                 || super.onSupportNavigateUp();
     }
 
-    public NotesViewModelFactory getViewModelFactory() {
-        return viewModelFactory;
+    public NotesViewModelFactory getNotesViewModelFactory() {
+        if (notesViewModelFactory == null) {
+            throw new IllegalStateException("Factories not initialized yet");
+        }
+        return notesViewModelFactory;
+    }
+
+
+    public AuthViewModelFactory getAuthViewModelFactory() {
+        if (notesViewModelFactory == null) {
+            throw new IllegalStateException("Factories not initialized yet");
+        }
+        return authViewModelFactory;
     }
 }
