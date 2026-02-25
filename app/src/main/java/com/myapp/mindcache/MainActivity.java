@@ -64,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
             NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
 
             appBarConfiguration = new AppBarConfiguration.Builder(
-                    R.id.nav_auth,
                     R.id.nav_notes_list,
                     R.id.nav_gallery,
                     R.id.nav_import_export)
@@ -74,8 +73,23 @@ public class MainActivity extends AppCompatActivity {
             NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
             NavigationUI.setupWithNavController(navigationView, navController);
 
+            navController.addOnDestinationChangedListener((controller, destination, arguments)
+                    -> setDrawerEnabled(destination.getId() != R.id.nav_auth));
+
         } catch (Exception e) {
             Log.e(TAG, "Navigation setup failed", e);
+        }
+    }
+
+    private void setDrawerEnabled(boolean enabled) {
+        if (enabled) {
+            // Показываем гамбургер и разблокируем drawer
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+        } else {
+            // Скрываем гамбургер и блокируем drawer
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
         }
     }
 
