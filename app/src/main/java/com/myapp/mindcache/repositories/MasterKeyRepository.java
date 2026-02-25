@@ -8,10 +8,8 @@ import com.myapp.mindcache.datastorage.AppDatabase;
 import com.myapp.mindcache.model.MasterKeyEntity;
 
 import io.reactivex.Completable;
-import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class MasterKeyRepository {
@@ -51,7 +49,7 @@ public class MasterKeyRepository {
 
     public Completable updateMasterKey(MasterKeyEntity masterKey) {
         return Completable.fromAction(() -> {
-            Log.d(TAG, "perform 'updateMasterKey'");
+                    Log.d(TAG, "perform 'updateMasterKey'");
                     masterKey.createdAt = System.currentTimeMillis();
                     masterKeyDao.insert(masterKey);
                 })

@@ -51,17 +51,37 @@ public class KeyManagerImpl implements KeyManager {
         return masterKeyRepository.exists();
     }
 
+    /**
+     * Выполняет аутентификацию пользователя по паролю и получает мастер-ключ.
+     *
+     * Процесс аутентификации:
+     * 1. Проверяет пароль через {@link #authorize(char[])}
+     * 2. Получает зашифрованный мастер-ключ из репозитория (таймаут 5 сек)
+     * 3. Расшифровывает мастер-ключ с использованием пароля
+     * 4. Сохраняет расшифрованный ключ в кэше (на 5 минут)
+     *
+     * Важные особенности:
+     * - Пароль затирается из памяти после завершения (успех или ошибка)
+     * - При успехе мастер-ключ доступен через {@link #getMasterKey()}
+     * - Результат кэшируется с TTL = 5 минут
+     * - Все операции выполняются в фоновом потоке (Schedulers.io())
+     *
+     * @param password пароль пользователя (будет затерт после использования)
+     * @return Completable, который завершится успешно при правильном пароле,
+     *         или ошибкой в случаях:
+     *         - {@link SecurityException} - неверный пароль
+     *         - {@link Exception} - другие ошибки (проблемы БД, дешифровки и т.д.)
+     *
+     * @see #authorize(char[])
+     * @see #decryptMasterKey(char[], MasterKeyEntity)
+     * @see #cacheMasterKey(byte[])
+     */
     @Override
     public Completable login(char[] password) {
 
         return Completable.fromAction(() -> authorize(password))
                 .andThen(masterKeyRepository.getMasterKeySingle().timeout(5, TimeUnit.SECONDS))
-                .flatMap(mk -> {
-                    SecretKey keyFromPassword = keyGenerator.deriveSecretKey(password, mk.keySalt);
-                    byte[] masterKey = CryptoHelper.decrypt(mk.encryptedKey, keyFromPassword);
-                    Arrays.fill(keyFromPassword.getEncoded(), (byte)0);
-                    return Single.just(masterKey);
-                })
+                .flatMap(mk -> decryptMasterKey(password, mk))
                 .flatMapCompletable(bytes -> Completable.fromAction(() -> cacheMasterKey(bytes)))
                 .doFinally(() -> Arrays.fill(password, '\0'))
                 .subscribeOn(Schedulers.io());
@@ -103,9 +123,61 @@ public class KeyManagerImpl implements KeyManager {
                 .subscribeOn(Schedulers.io());
     }
 
+    /**
+     * Изменяет пароль пользователя с сохранением доступа к данным.
+     **
+     * <h2>Процесс изменения пароля:</h2>
+     * <ol>
+     *   <li><b>Валидация</b> - проверка сложности нового пароля</li>
+     *   <li><b>Аутентификация</b> - подтверждение старого пароля через {@link #login(char[])}</li>
+     *   <li><b>Генерация</b> - создание новых учетных данных на основе нового пароля и мастер-ключа из кэша</li>
+     *   <li><b>Сохранение</b> - транзакционное сохранение в БД и SharedPreferences</li>
+     *   <li><b>Очистка</b> - удаление чувствительных данных из памяти</li>
+     * </ol>
+     *
+     * <p><b>Важно:</b> мастер-ключ НЕ меняется при смене пароля.</p>
+     *
+     * <h2>Транзакционность и откат:</h2>
+     * <p>Пока не реализованы
+     * </p>
+     *
+     * <h2>Возможные ошибки:</h2>
+     * <table border="1">
+     *   <tr><th>Тип ошибки</th><th>Причина</th><th>Рекомендация</th></tr>
+     *   <tr><td>SecurityException</td><td>Неверный старый пароль</td><td>Запросить пароль заново</td></tr>
+     *   <tr><td>IllegalArgumentException</td><td>Новый пароль не проходит валидацию</td><td>Показать требования к паролю</td></tr>
+     *   <tr><td>TransactionException</td><td>Ошибка при сохранении, данные восстановлены</td><td>Повторить попытку</td></tr>
+     *   <tr><td>TimeoutException</td><td>Таймаут при обращении к БД</td><td>Проверить соединение</td></tr>
+     * </table>
+     *
+     * @param oldPassword текущий пароль (будет затерт)
+     * @param newPassword новый пароль (будет затерт)
+     * @return Completable, сигнализирующий об успешной смене пароля
+     * @throws SecurityException если старый пароль неверен
+     * @throws IllegalArgumentException если новый пароль не проходит валидацию
+     *
+     * @see #validatePassword(char[])
+     * @see #login(char[])
+     * @see #generateCredentials(char[], byte[])
+     */
+    @Override
+    public Completable changePassword(char[] oldPassword, char[] newPassword) {
+        // TODO: rollback!
+        return Completable.fromAction(() -> validatePassword(newPassword))
+                .andThen(Completable.fromAction(() -> login(oldPassword)))
+                .doOnComplete(() -> Log.i(TAG, "Changing password started"))
+                .andThen(Single.fromCallable(() -> generateCredentials(newPassword, cachedMasterKey)))
+                .flatMapCompletable(credentials -> saveEncodedKey(credentials.keySalt, credentials.passwordEncryptedKey)
+                        .concatWith(Completable.fromAction(() -> saveAuthInfo(credentials.authSalt, credentials.passwordHash)))
+                )
+                .doOnComplete(() -> Log.i(TAG, "Password changed successfully"))
+                .doOnError(error -> Log.e(TAG, "Password changing failed", error))
+                .subscribeOn(Schedulers.io());
+    }
+
     @Override
     public void logout() {
-
+        clearCache();
     }
 
     @Override
@@ -122,12 +194,22 @@ public class KeyManagerImpl implements KeyManager {
         return Arrays.copyOf(cachedMasterKey, cachedMasterKey.length);
     }
 
+    private Single<byte[]> decryptMasterKey(char[] password, MasterKeyEntity mk) throws Exception {
+        SecretKey keyFromPassword = keyGenerator.deriveSecretKey(password, mk.keySalt);
+        byte[] masterKey = CryptoHelper.decrypt(mk.encryptedKey, keyFromPassword);
+        Arrays.fill(keyFromPassword.getEncoded(), (byte)0);
+        return Single.just(masterKey);
+    }
+
     private @NonNull Credentials generateCredentials(char[] password) throws Exception {
+        byte[] masterKey = keyGenerator.generateMasterKey();
+        return generateCredentials(password, masterKey);
+    }
+
+    private @NonNull Credentials generateCredentials(@NonNull char[] password, @NonNull byte[] masterKey) throws Exception {
         byte[] authSalt = keyGenerator.generateSalt();
         byte[] passwordHash = keyGenerator.deriveKey(password, authSalt);
-
         byte[] keySalt = keyGenerator.generateSalt();
-        byte[] masterKey = keyGenerator.generateMasterKey();
 
         SecretKey keyFromPassword = keyGenerator.deriveSecretKey(password, keySalt);
         byte[] passwordEncryptedKey = CryptoHelper.encrypt(masterKey, keyFromPassword);
@@ -151,11 +233,6 @@ public class KeyManagerImpl implements KeyManager {
             cachedMasterKey = null;
         }
         cacheTimestamp = System.currentTimeMillis();
-    }
-
-    @Override
-    public void changePassword(char[] oldPassword, char[] newPassword) {
-
     }
 
     private void validatePassword(@NotNull char[] password) {

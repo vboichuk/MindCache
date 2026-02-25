@@ -17,5 +17,5 @@ public interface KeyManager {
 
     byte[] getMasterKey() throws Exception, AuthError;
 
-    void changePassword(char[] oldPassword, char[] newPassword);
+    Completable changePassword(char[] oldPassword, char[] newPassword);
 }
