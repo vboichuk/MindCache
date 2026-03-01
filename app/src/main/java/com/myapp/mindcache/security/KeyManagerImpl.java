@@ -28,7 +28,7 @@ public class KeyManagerImpl implements KeyManager {
     private static final String TAG = KeyManagerImpl.class.getSimpleName();
     private static final String PREFS_PASSWORD_HASH = "password_hash";
     private static final String PREFS_PASSWORD_SALT = "password_salt";
-    public static final String AUTH_PREFS = "auth_prefs";
+    private static final String AUTH_PREFS = "auth_prefs";
 
     private final Context context;
     private final KeyGenerator keyGenerator;

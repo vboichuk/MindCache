@@ -97,12 +97,7 @@ public class NoteListFragment extends Fragment {
             if (error != null) {
                 Log.e(TAG, "Error occurred", error);
                 if (isAdded()) {
-                    Snackbar.make(binding.getRoot(),
-                                    R.string.error_loading_notes,
-                                    Snackbar.LENGTH_LONG)
-                            .setAction(R.string.retry, v -> {
-                            })
-                            .show();
+                    Snackbar.make(binding.getRoot(), R.string.error_loading_notes, Snackbar.LENGTH_LONG).show();
                 }
             }
         });

@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentNoteDetailBinding;
@@ -64,6 +65,7 @@ public class NoteDetailFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         setupActions();
         initViewModel();
+        observeViewModel();
 
         if (getArguments() != null) {
             long id = getArguments().getLong(ARG_NOTE_ID);
@@ -94,27 +96,62 @@ public class NoteDetailFragment extends Fragment {
         }, getViewLifecycleOwner());
     }
 
-
-
     private void initViewModel() {
         MainActivity activity = (MainActivity) requireActivity();
         NotesViewModelFactory factory = activity.getNotesViewModelFactory();
         viewModel = new ViewModelProvider(requireActivity(), factory).get(NotesViewModel.class);
     }
 
+    private void observeViewModel() {
+        Log.d(TAG, "observeViewModel");
+        // Наблюдаем за ошибками аутентификации
+        viewModel.getErrors().observe(getViewLifecycleOwner(), error -> {
+            if (error != null) {
+                Log.d(TAG, "getErrors updated");
+                if (error instanceof AuthError) {
+                    AuthError authError = (AuthError) error;
+                    String message;
+                    switch (authError.getReason()) {
+                        case SESSION_EXPIRED:
+                            message = "Сессия истекла. Войдите снова";
+                            break;
+                        case NOT_AUTHENTICATED:
+                            message = "Требуется аутентификация";
+                            break;
+                        default:
+                            message = "Ошибка доступа";
+                    }
+                    showMessage(message);
+                    navigateToLogin();
+                } else {
+                    showMessage(error.getMessage());
+                }
+
+            }
+        });
+    }
+
+    private void navigateToLogin() {
+        Log.i(TAG, "navigateToLogin");
+        try {
+            NavController navController = Navigation.findNavController(requireView());
+            navController.navigate(R.id.action_global_auth);
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Navigation error", e);
+        }
+    }
+
     private void loadNoteData(long noteId) {
         Disposable disposable;
-        try {
-            disposable = viewModel.getNoteById(noteId)
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            this::displayNote,
-                            error -> Log.e(TAG, "Failed to decrypt note: " + noteId, error)
-                    );
-        } catch (AuthError | Exception e) {
-            throw new RuntimeException(e);
-        }
+        disposable = viewModel.getNoteById(noteId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        this::displayNote,
+                        error -> {
+                            showError(error);
+                            Log.e(TAG, "Failed to decrypt note: " + noteId, error); }
+                );
         disposables.add(disposable);
     }
 
@@ -148,30 +185,36 @@ public class NoteDetailFragment extends Fragment {
 
     private void createNewNote(String title, String content, boolean secret) {
         NoteCreateDto noteCreateDto = new NoteCreateDto(title, content, secret, System.currentTimeMillis());
-        Disposable disposable;
-        try {
-            disposable = viewModel.addNote(noteCreateDto)
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            () -> {
-                                if (isAdded()) {
-                                    Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
-                                    navigateBack();
-                                }
-                            },
-                            throwable -> {
-                                Log.e(TAG, "Error adding note", throwable);
-                                if (isAdded()) {
-                                    Toast.makeText(requireContext(), throwable.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                    );
-        } catch (AuthError | Exception e) {
-            throw new RuntimeException(e);
-        }
+        Disposable disposable = viewModel.addNote(noteCreateDto)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> {
+                            showMessage("SAVED");
+                            navigateBack();
+                        },
+                        error -> {
+                            Log.e(TAG, "Error adding note", error);
+                            showError(error);
+                        }
+                );
+
         disposables.add(disposable);
     }
+
+    private void showError(@NonNull Throwable error) {
+        if (error.getMessage() != null) {
+            showMessage(error.getMessage());
+        }
+    }
+
+
+    private void showMessage(String message) {
+        if (isAdded() && getView() != null) {
+            Snackbar.make(getView(), message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
 
     private void updateExistingNote(String title, String content, boolean isSecret) {
 
@@ -186,12 +229,7 @@ public class NoteDetailFragment extends Fragment {
                                 Toast.makeText(requireContext(), "SAVED", Toast.LENGTH_SHORT).show();
                                 navigateBack();
                             },
-                            error -> {
-                                if (error instanceof UserNotAuthenticatedException)
-                                    Toast.makeText(requireContext(), "Авторизация протухла", Toast.LENGTH_SHORT).show();
-                                else
-                                    Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
+                            this::showError);
         } catch (AuthError | Exception e) {
             throw new RuntimeException(e);
         }

@@ -130,6 +130,20 @@ public class AuthViewModel extends AndroidViewModel {
         disposables.add(disposable);
     }
 
+    public void changePassword(char[] oldPassword, char[] newPassword) {
+        if (newPassword == null || newPassword.length == 0) {
+            Log.e(TAG, "Password cannot be null or empty");
+            errorMessage.postValue("Password cannot be null or empty");
+            return;
+        }
+
+        Disposable disposable = keyManager.changePassword(oldPassword, newPassword)
+                .observeOn(Schedulers.io())
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> Log.i(TAG, "password changed!"));
+        disposables.add(disposable);
+    }
+
     public enum AuthState {
         REGISTER,
         LOGIN,

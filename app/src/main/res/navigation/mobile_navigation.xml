@@ -11,7 +11,7 @@
         android:name="com.myapp.mindcache.ui.auth.AuthFragment"
         android:label="AuthFragment">
         <action
-            android:id="@+id/action_auth_to_diary"
+            android:id="@+id/action_auth_to_notes_list"
             app:destination="@id/nav_notes_list"
             app:popUpTo="@id/nav_auth"
             app:popUpToInclusive="true"
@@ -52,5 +52,11 @@
         android:name="com.myapp.mindcache.ui.importexport.ImportExportFragment"
         android:label="@string/menu_import_export"
         tools:layout="@layout/fragment_import_export" />
+
+    <action
+        android:id="@+id/action_global_auth"
+        app:destination="@id/nav_auth"
+        app:popUpTo="@id/nav_auth"
+        app:popUpToInclusive="true" />
 
 </navigation>

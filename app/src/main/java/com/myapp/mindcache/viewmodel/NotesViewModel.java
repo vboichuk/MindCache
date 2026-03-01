@@ -1,7 +1,6 @@
 package com.myapp.mindcache.viewmodel;
 
 import android.app.Application;
-import android.security.keystore.UserNotAuthenticatedException;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -21,7 +20,6 @@ import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.security.KeyGenerator;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.KeyManager;
-import com.myapp.mindcache.security.KeyManagerImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
 
 import java.time.LocalDateTime;
@@ -44,7 +42,7 @@ public class NotesViewModel extends AndroidViewModel {
     private final NoteRepository repository;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
-    private final MutableLiveData<Throwable> errors = new MutableLiveData<>();
+    private final SingleLiveEvent<Throwable> errors = new SingleLiveEvent<>();
     private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
     private final MutableLiveData<Map<Long, NotePreview>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
 
@@ -100,7 +98,6 @@ public class NotesViewModel extends AndroidViewModel {
         }
         markAsLoading(noteId);
 
-        // char[] password = getPasswordOrThrow();
         byte[] masterKey = keyManager.getMasterKey();
 
         disposables.add(
@@ -114,14 +111,21 @@ public class NotesViewModel extends AndroidViewModel {
                                 },
                                 error -> {
                                     unmarkAsDecrypting(noteId);
-                                    Log.e(TAG, error.getMessage());
+                                    Log.e(TAG, error.getMessage(), error);
                                 }
                         )
         );
     }
 
-    public Single<Note> getNoteById(long noteId) throws AuthError, Exception {
-        byte[] password = keyManager.getMasterKey();
+    public Single<Note> getNoteById(long noteId) {
+        byte[] password;
+        try {
+            password = keyManager.getMasterKey();
+        } catch (AuthError | Exception e) {
+            errors.postValue(e);
+            return Single.error(e);
+        }
+
         return repository.getDecryptedNote(noteId, password)
                 .map(note -> {
                     // addToCache(note);
@@ -129,15 +133,20 @@ public class NotesViewModel extends AndroidViewModel {
                 });
     }
 
-    public Completable addNote(NoteCreateDto dto) throws Exception, AuthError {
+    public Completable addNote(NoteCreateDto dto) {
 
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
-        byte[] masterKey = dto.isSecret()
-                ? keyManager.getMasterKey()
-                : null;
+        byte[] masterKey;
+        try {
+            masterKey = dto.isSecret()
+                    ? keyManager.getMasterKey()
+                    : null;
+        } catch (Exception | AuthError e) {
+            return Completable.error(e);
+        }
 
         return repository.insertNote(dto, masterKey)
                 .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note

@@ -21,14 +21,11 @@ import com.myapp.mindcache.utils.BiometricAuthHelper;
 import com.myapp.mindcache.viewmodel.AuthViewModel;
 import com.myapp.mindcache.viewmodel.AuthViewModelFactory;
 
-import io.reactivex.disposables.CompositeDisposable;
-
 public class AuthFragment extends Fragment {
 
     private static final String TAG = AuthFragment.class.getSimpleName();
 
     private final BiometricAuthHelper authHelper = new BiometricAuthHelper();
-    private final CompositeDisposable disposables = new CompositeDisposable();
     private FragmentAuthBinding binding;
     private AuthViewModel authViewModel;
 
@@ -127,6 +124,10 @@ public class AuthFragment extends Fragment {
 
     private void navigateToNotes() {
         NavController navController = Navigation.findNavController(requireView());
-        navController.navigate(R.id.action_auth_to_diary);
+        if (navController.getPreviousBackStackEntry() != null) {
+            navController.popBackStack();
+        } else {
+            navController.navigate(R.id.action_auth_to_notes_list);
+        }
     }
 }
