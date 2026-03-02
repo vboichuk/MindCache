@@ -54,6 +54,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+    }
+    @Override
     protected void onPostCreate(@Nullable Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
         setupNavigation();
@@ -121,7 +125,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return notesViewModelFactory;
     }
-
 
     public AuthViewModelFactory getAuthViewModelFactory() {
         if (notesViewModelFactory == null) {

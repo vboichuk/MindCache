@@ -27,4 +27,6 @@
     <string name="icon_secret_note">🔒</string>
     <string name="menu_register">Register</string>
     <string name="password">password</string>
+    <string name="msg_deleted">DELETED</string>
+    <string name="msg_saved">SAVED</string>
 </resources>

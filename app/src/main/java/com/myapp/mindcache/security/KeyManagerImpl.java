@@ -35,7 +35,7 @@ public class KeyManagerImpl implements KeyManager {
     private final MasterKeyRepository masterKeyRepository;
 
     private byte[] cachedMasterKey;
-    private long cacheTimestamp;
+    private long cacheTimestamp = 0L;
 
     private static final long CACHE_TTL = 5 * 60 * 1000; // 5 минут
 
@@ -183,13 +183,14 @@ public class KeyManagerImpl implements KeyManager {
     @Override
     public byte[] getMasterKey() throws AuthError {
 
+        if (cachedMasterKey == null && cacheTimestamp == 0L)
+            throw new AuthError(AuthError.Reason.NOT_AUTHENTICATED);
+
         if (System.currentTimeMillis() - cacheTimestamp >= CACHE_TTL) {
             clearCache();
             throw new AuthError(AuthError.Reason.SESSION_EXPIRED);
         }
 
-        if (cachedMasterKey == null)
-            throw new AuthError(AuthError.Reason.NOT_AUTHENTICATED);
 
         return Arrays.copyOf(cachedMasterKey, cachedMasterKey.length);
     }
@@ -232,7 +233,6 @@ public class KeyManagerImpl implements KeyManager {
             Arrays.fill(cachedMasterKey, (byte) 0);
             cachedMasterKey = null;
         }
-        cacheTimestamp = System.currentTimeMillis();
     }
 
     private void validatePassword(@NotNull char[] password) {

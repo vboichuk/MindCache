@@ -1,7 +1,6 @@
 package com.myapp.mindcache.repositories;
 
 import android.content.Context;
-import android.security.keystore.UserNotAuthenticatedException;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -19,7 +18,6 @@ import com.myapp.mindcache.security.NoteEncryptionService;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.List;
 
 import io.reactivex.Completable;
@@ -39,75 +37,39 @@ public class NoteRepository {
     }
 
     public LiveData<List<NoteMetadata>> getNotesMetadata() {
-        return noteDao.getNotesMetadata(20);
+        return noteDao.getNotesMetadata();
     }
 
     public Single<NotePreview> getDecryptedPreview(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedPreviewById(noteId)
                 .map(encryptedNote -> encryptedNote.isEncrypted()
                         ? encryptionService.decryptPreview(encryptedNote, masterKey)
-                        : encryptedNote)
-                .subscribeOn(Schedulers.io());
+                        : encryptedNote);
     }
 
     public Single<Note> getDecryptedNote(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedNoteById(noteId)
                 .map(encryptedNote -> encryptedNote.isEncrypted()
                         ? encryptionService.decryptNote(encryptedNote, masterKey)
-                        : encryptedNote)
-                .subscribeOn(Schedulers.io());
-    }
-
-    @Deprecated
-    public Single<Note> insertNote(NoteCreateDto dto, char[] password) {
-        // Валидация входных данных
-        if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
-            return Single.error(new IllegalArgumentException("Note data is invalid"));
-        }
-
-        return Single.fromCallable(() -> {
-                try {
-                    Note decrypted = NodeMapper.fromDto(dto);
-                    decrypted.setPreview(dto.getContent());
-                    long id = noteDao.insert(encryptNoteIfNeeded(password, decrypted));
-                    decrypted.setId(id);
-                    return decrypted;
-                } catch (Exception e) {
-                    Log.e(TAG, "Insert failed: " + e.getMessage());
-                    throw new SecurityException("Encryption error", e);
-                } finally {
-                    clearPassword(password);
-                }
-            })
-            .subscribeOn(Schedulers.io())
-            .doOnSuccess(note -> Log.d(TAG, "Inserted note with ID: " + note.getId()))
-            .doOnError(e -> Log.e(TAG, "Error inserting note", e));
+                        : encryptedNote);
     }
 
     public Single<Note> insertNote(NoteCreateDto dto, byte[] masterKey) {
-        // Валидация входных данных
         if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Single.error(new IllegalArgumentException("Note data is invalid"));
         }
 
         return Single.fromCallable(() -> {
-                    try {
-                        Note decrypted = NodeMapper.fromDto(dto);
-                        decrypted.setPreview(dto.getContent());
-                        long id = noteDao.insert(encryptNoteIfNeeded(masterKey, decrypted));
-                        decrypted.setId(id);
-                        return decrypted;
-                    } catch (Exception e) {
-                        Log.e(TAG, "Insert failed: " + e.getMessage());
-                        throw new SecurityException("Encryption error", e);
-                    }
+                    Note note = NodeMapper.fromDto(dto);
+                    note.setPreview(getPreview(dto.getContent()));
+                    long id = noteDao.insert(encryptNoteIfNeeded(masterKey, note));
+                    note.setId(id);
+                    return note;
                 })
-                .subscribeOn(Schedulers.io())
-                .doOnSuccess(note -> Log.d(TAG, "Inserted note with ID: " + note.getId()))
-                .doOnError(e -> Log.e(TAG, "Error inserting note", e));
+                .subscribeOn(Schedulers.io());
     }
 
-    private String getPreview(String content) {
+    public static String getPreview(String content) {
         if (content == null || content.isBlank())
             return "";
 
@@ -124,8 +86,7 @@ public class NoteRepository {
                     }
                     Log.i(TAG, "Note deleted with id: " + id);
                 })
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error in deleteNote", e));
+                .subscribeOn(Schedulers.io());
     }
 
     public Single<Note> updateNote(NoteUpdateDto dto, byte[] masterKey) {
@@ -134,41 +95,21 @@ public class NoteRepository {
         }
 
         return Single.fromCallable(() -> {
-                    try {
-                        Note existing = noteDao.getById(dto.getId());
-                        if (existing == null) {
-                            throw new IllegalArgumentException("Note with ID " + dto.getId() + " not found");
-                        }
-
-                        Note updated = new Note(existing);
-                        updated.setTitle(dto.getTitle());
-                        updated.setContent(dto.getContent());
-                        updated.setPreview(getPreview(dto.getContent()));
-                        updated.setSecret(dto.isSecret());
-                        noteDao.update(encryptNoteIfNeeded(masterKey, updated));
-                        Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
-                        return updated;
-                    } catch (UserNotAuthenticatedException e) {
-                        Log.e(TAG, "Authentication expired", e);
-                        throw e;
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error updating dto title and content", e);
-                        throw new SecurityException("Failed to update dto", e);
-                    } finally {
-                        // clearPassword(password);
+                    Note existing = noteDao.getById(dto.getId());
+                    if (existing == null) {
+                        throw new IllegalArgumentException("Note with ID " + dto.getId() + " not found");
                     }
+
+                    Note updated = new Note(existing);
+                    updated.setTitle(dto.getTitle());
+                    updated.setContent(dto.getContent());
+                    updated.setPreview(getPreview(dto.getContent()));
+                    updated.setSecret(dto.isSecret());
+                    noteDao.update(encryptNoteIfNeeded(masterKey, updated));
+                    Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
+                    return updated;
                 })
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error updating dto title and content", e));
-    }
-
-
-    @Deprecated
-    private Note encryptNoteIfNeeded(char[] password, Note existingNote) throws Exception {
-//        if (existingNote.isSecret()) {
-//            return encryptionService.encryptNote(existingNote, password);
-//        }
-        return existingNote;
+                .subscribeOn(Schedulers.io());
     }
 
     private Note encryptNoteIfNeeded(byte[] masterKey, Note existingNote) throws Exception {
@@ -178,19 +119,16 @@ public class NoteRepository {
         return existingNote;
     }
 
-    private void clearPassword(char[] password) {
-        if (password != null) {
-            Arrays.fill(password, '\0');
-            Log.i(TAG, "password was cleared");
-        }
-    }
-
-    public void updateDateTime(Long id, LocalDateTime datetime) {
-        long millisBack = datetime.atZone(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli();
-
-        noteDao.changeDatetime(id, millisBack);
+    public Completable updateDateTime(long id, LocalDateTime datetime) {
+        return Completable.fromAction(() -> {
+                    long millis = datetime.atZone(ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli();
+                    noteDao.changeDatetime(id, millis);
+                })
+                .subscribeOn(Schedulers.io())
+                .doOnComplete(() -> Log.d(TAG, "Date updated: " + id))
+                .doOnError(error -> Log.e(TAG, "Date update failed: " + id, error));
     }
 
 }

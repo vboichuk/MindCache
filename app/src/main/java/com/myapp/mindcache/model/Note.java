@@ -21,6 +21,20 @@ public class Note {
     @Ignore
     private boolean isSecret;
 
+    public Note(long id, String title, String content, String preview, long createdAt, boolean secret) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.preview = preview;
+        this.createdAt = createdAt;
+        this.salt = null;
+        this.isSecret = secret;
+    }
+
+    public static Note createEmpty() {
+        return new Note(0L, "", "", "", System.currentTimeMillis(), null);
+    }
+
     public Note(long id, String title, String content, String preview, long createdAt, String salt) {
         this.id = id;
         this.title = title;

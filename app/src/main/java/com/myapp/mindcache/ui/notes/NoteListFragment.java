@@ -7,13 +7,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -22,11 +20,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
+import com.myapp.mindcache.databinding.BottomSheetLayoutBinding;
 import com.myapp.mindcache.databinding.FragmentNotesListBinding;
-import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
@@ -43,11 +40,12 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
-public class NoteListFragment extends Fragment {
+public class NoteListFragment extends BaseFragment {
 
     private static final String TAG = NoteListFragment.class.getSimpleName();
     private static final int PREFETCH_LIMIT = 10;
-
+    public static final String ARG_NOTE_ID = "noteId";
+    
     private FragmentNotesListBinding binding;
     private NotesViewModel viewModel;
     private NoteListAdapter noteListAdapter;
@@ -93,21 +91,12 @@ public class NoteListFragment extends Fragment {
 
         Log.i(TAG, "observeViewModel");
 
-        viewModel.getErrors().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                Log.e(TAG, "Error occurred", error);
-                if (isAdded()) {
-                    Snackbar.make(binding.getRoot(), R.string.error_loading_notes, Snackbar.LENGTH_LONG).show();
-                }
-            }
-        });
+        viewModel.getErrors().observe(getViewLifecycleOwner(), this::processError); // ?
 
         viewModel.getNotesMetadata().observe(getViewLifecycleOwner(), this::onFetchMetadata);
 
-        viewModel.getCachedPreviews().observe(getViewLifecycleOwner(), items -> {
-            Log.d(TAG, "decryptedNotes were updated with " + items.size() + " items");
-            noteListAdapter.updateItems(items.values());
-        });
+        viewModel.getCachedPreviews().observe(getViewLifecycleOwner(), items ->
+                noteListAdapter.updateItems(items.values()));
     }
 
     private void onFetchMetadata(List<NoteMetadata> metadataList) {
@@ -134,17 +123,9 @@ public class NoteListFragment extends Fragment {
                 .filter(id -> cachedPreviews == null || !cachedPreviews.containsKey(id))
                 .limit(PREFETCH_LIMIT)
                 .collect(Collectors.toList());
-        try {
-            viewModel.prefetchNotes(missing);
-//        } catch (UserNotAuthenticatedException e) {
-//            throw new RuntimeException(e);
-        } catch (AuthError e) {
-            Log.e(TAG, e.getMessage(), e);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
+        viewModel.prefetchNotes(missing);
+    }
 
     private void onAddClick() {
          NavController navController = Navigation.findNavController(requireView());
@@ -155,26 +136,25 @@ public class NoteListFragment extends Fragment {
         long noteId = notePreview.getId();
         Log.d(TAG, "onNoteClick id:" + noteId);
         Bundle args = new Bundle();
-        args.putLong("noteId", noteId);
+        args.putLong(ARG_NOTE_ID, noteId);
 
         NavController navController = Navigation.findNavController(requireView());
         navController.navigate(R.id.action_diary_to_noteDetail, args);
     }
 
-    private void onNoteVisible(long l) {
-        try {
-            viewModel.prefetchNote(l);
-//        } catch (UserNotAuthenticatedException e) {
-//            throw new RuntimeException(e);
-        } catch (AuthError | Exception e) {
-            throw new RuntimeException(e);
-        }
+    private void onNoteVisible(long noteId) {
+        Disposable disposable = viewModel.prefetchNote(noteId)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(() -> {},
+                        this::processError);
+
+        disposables.add(disposable);
     }
 
     private void onNoteLongClick(NotePreview notePreview) {
         showBottomSheet(notePreview);
     }
-
 
     private void showBottomSheet(NotePreview notePreview) {
         Context context = this.getContext();
@@ -182,14 +162,15 @@ public class NoteListFragment extends Fragment {
             return;
         }
 
-        View sheetLayoutView = LayoutInflater.from(context).inflate(R.layout.bottom_sheet_layout, null);
+        BottomSheetLayoutBinding binding = BottomSheetLayoutBinding.inflate(LayoutInflater.from(context));
 
-        Button btnDelete = sheetLayoutView.findViewById(R.id.btnDelete);
+        View sheetLayoutView = binding.getRoot();
 
-        btnDelete.setOnClickListener(v -> {
+        sheetLayoutView.findViewById(R.id.btnDelete).setOnClickListener(v -> {
             showDeleteNoteDialog(notePreview);
             bottomSheetDialog.dismiss();
         });
+        sheetLayoutView.findViewById(R.id.btnOption2).setOnClickListener(v -> bottomSheetDialog.dismiss());
 
         bottomSheetDialog = new BottomSheetDialog(requireContext());
         bottomSheetDialog.setContentView(sheetLayoutView);
@@ -243,8 +224,8 @@ public class NoteListFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
                 .subscribe(
-                        () -> Toast.makeText(requireContext(), "DELETED", Toast.LENGTH_LONG).show(),
-                        error -> Toast.makeText(requireContext(), error.getMessage(), Toast.LENGTH_SHORT).show()
+                        () -> showMessage(R.string.msg_deleted),
+                        this::processError
                 );
         disposables.add(subscribe);
     }
@@ -252,15 +233,6 @@ public class NoteListFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        disposables.clear();
         binding = null;
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (!disposables.isDisposed()) {
-            disposables.dispose();
-        }
     }
 }

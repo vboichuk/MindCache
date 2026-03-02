@@ -26,27 +26,30 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class NotesViewModel extends AndroidViewModel {
     private static final String TAG = NotesViewModel.class.getSimpleName();
 
     private final NoteRepository repository;
+    private final KeyManager keyManager;
+
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     private final SingleLiveEvent<Throwable> errors = new SingleLiveEvent<>();
     private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
     private final MutableLiveData<Map<Long, NotePreview>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
 
-    private final KeyManager keyManager;
+    private Note noteDraft = null;
 
     private final Set<Long> decryptingIds = ConcurrentHashMap.newKeySet();
 
@@ -66,11 +69,11 @@ public class NotesViewModel extends AndroidViewModel {
 
     private void observeRepository() {
         repository.getNotesMetadata().observeForever(metadata -> {
-            Log.i(TAG, "notesMetadata updated! " + metadata.stream().map(NoteMetadata::getId).collect(Collectors.toList()));
+            // Log.i(TAG, "notesMetadata updated! " + metadata.stream().map(NoteMetadata::getId).collect(Collectors.toList()));
+            Log.i(TAG, "notesMetadata updated with " + metadata.size() + " items");
             notesMetadata.postValue(metadata);
         });
     }
-
 
     public LiveData<List<NoteMetadata>> getNotesMetadata() {
         return notesMetadata;
@@ -84,40 +87,52 @@ public class NotesViewModel extends AndroidViewModel {
         return errors;
     }
 
-    public void prefetchNotes(List<Long> ids) throws AuthError, Exception {
+    public void prefetchNotes(List<Long> ids) {
         Log.i(TAG, "prefetchNotes: " + ids);
         for (Long noteId : ids) {
-            prefetchNote(noteId);
+            Disposable disposable = prefetchNote(noteId)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(
+                            () -> Log.d(TAG, "Prefetched: " + noteId),
+                            error -> Log.e(TAG, "Failed to prefetch: " + noteId, error)
+                    );
+            disposables.add(disposable);
         }
     }
 
-    public void prefetchNote(long noteId) throws AuthError, Exception {
+    public Completable prefetchNote(long noteId) {
 
         if (isNoteCached(noteId) || isNoteLoading(noteId)) {
-            return;
+            return Completable.complete();
         }
         markAsLoading(noteId);
 
-        byte[] masterKey = keyManager.getMasterKey();
+        byte[] masterKey;
+        try {
+            masterKey = keyManager.getMasterKey();
+        } catch (AuthError | Exception e) {
+            return Completable.error(e);
+        }
 
-        disposables.add(
-                repository.getDecryptedPreview(noteId, masterKey)
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(
-                                newNote -> {
-                                    addToCache(newNote);
-                                    unmarkAsDecrypting(noteId);
-                                },
-                                error -> {
-                                    unmarkAsDecrypting(noteId);
-                                    Log.e(TAG, error.getMessage(), error);
-                                }
-                        )
-        );
+        return repository.getDecryptedPreview(noteId, masterKey)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSuccess(this::addToCache)
+                .doFinally(() -> unmarkAsLoading(noteId))
+                .ignoreElement();
     }
 
     public Single<Note> getNoteById(long noteId) {
+
+        Optional<Note> draft = getDraftForNote(noteId);
+        if (draft.isPresent()) {
+            return Single.just(draft.get());
+        }
+
+        if (noteId == 0L) {
+            return Single.just(Note.createEmpty());
+        }
+
         byte[] password;
         try {
             password = keyManager.getMasterKey();
@@ -127,8 +142,9 @@ public class NotesViewModel extends AndroidViewModel {
         }
 
         return repository.getDecryptedNote(noteId, password)
+                .subscribeOn(Schedulers.io())
                 .map(note -> {
-                    // addToCache(note);
+                    addToCache(note);
                     return note;
                 });
     }
@@ -144,47 +160,66 @@ public class NotesViewModel extends AndroidViewModel {
             masterKey = dto.isSecret()
                     ? keyManager.getMasterKey()
                     : null;
-        } catch (Exception | AuthError e) {
+        } catch (AuthError | Exception  e) {
+            errors.postValue(e);
             return Completable.error(e);
         }
 
         return repository.insertNote(dto, masterKey)
-                .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
-                    addToCache(note);           // ← Кэшируем готовую Note
-                    Log.i(TAG, "Successfully added note with id: " + note.getId());
-                    return Completable.complete();
-                })
-                .doOnError(error -> {
-                    Log.e(TAG, "Error adding note", error);
-                    errors.postValue(error);
-                });
+                .doOnSuccess(
+                        note -> {
+                            addToCache(note);
+                            clearDraft(0L);
+                            Log.i(TAG, "Successfully added note with id: " + note.getId());
+                        })
+                .ignoreElement()
+                .subscribeOn(Schedulers.io());
     }
 
-    public Completable updateNote(NoteUpdateDto updateDto) throws Exception, AuthError {
+    public Completable updateNote(NoteUpdateDto updateDto) {
         if (TextUtils.isEmpty(updateDto.getTitle()) || TextUtils.isEmpty(updateDto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
-        byte[] masterKey = keyManager.getMasterKey();
+        byte[] masterKey;
+        try {
+            masterKey = keyManager.getMasterKey();
+        } catch (AuthError | Exception e) {
+            errors.postValue(e);
+            return Completable.error(e);
+        }
         return repository.updateNote(updateDto, masterKey)
-                .flatMapCompletable(note -> {  // ← Репозиторий возвращает Note
-                    addToCache(note);           // ← Кэшируем готовую Note
-                    Log.i(TAG, "Successfully updated note with id: " + note.getId());
-                    return Completable.complete();
+                .doOnSuccess(note -> {
+                    addToCache(note);
+                    clearDraft(updateDto.getId());
                 })
-                .doOnError(error -> {
-                    Log.e(TAG, "Error updating note", error);
-                    errors.postValue(error);
-                });
+                .ignoreElement()
+                .subscribeOn(Schedulers.io())
+                .doOnError(errors::postValue);
+    }
+
+    public void saveDraft(long noteId, String title, String content, boolean secret) {
+        noteDraft = new Note(noteId, title, content, "", System.currentTimeMillis(), secret);
+    }
+
+    public Optional<Note> getDraftForNote(long noteId) {
+        if (noteDraft != null && noteDraft.getId() == noteId)
+            return Optional.of(noteDraft);
+        return Optional.empty();
+    }
+
+    public void clearDraft(Long noteId) {
+        if (noteDraft != null && noteDraft.getId() == noteId)
+            noteDraft = null;
     }
 
     public Completable deleteNote(long id) {
         return repository.deleteNote(id)
+                .subscribeOn(Schedulers.io())
                 .doOnComplete(() -> removeFromCache(id))
-                .doOnError(value -> {
-                    Log.e(TAG, "Delete failed", value);
-                    errors.postValue(value);
-                })
-                .doOnDispose(() -> { });
+                .doOnError(error -> {
+                    Log.e(TAG, error.getMessage(), error);
+                    errors.postValue(error);
+                });
     }
 
     private void addToCache(NotePreview newNote) {
@@ -208,7 +243,6 @@ public class NotesViewModel extends AndroidViewModel {
         }
     }
 
-
     private boolean isNoteCached(long noteId) {
         Map<Long, NotePreview> cache = decryptedNotes.getValue();
         return cache != null && cache.containsKey(noteId);
@@ -219,12 +253,10 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     private void markAsLoading(long noteId) {
-        // Log.d(TAG, "+ markAsDecrypting " + noteId);
         decryptingIds.add(noteId);
     }
 
-    private void unmarkAsDecrypting(long noteId) {
-        // Log.d(TAG, "- unmarkAsDecrypting " + noteId);
+    private void unmarkAsLoading(long noteId) {
         decryptingIds.remove(noteId);
     }
 
@@ -237,10 +269,8 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     public Completable changeNoteDate(Long id, LocalDateTime datetime) {
-        return Completable.fromAction(() ->
-                        repository.updateDateTime(id, datetime)
-                )
-                .subscribeOn(Schedulers.io()) // Фоновый поток
-                .observeOn(AndroidSchedulers.mainThread()); // Результат в UI поток
+        return repository.updateDateTime(id, datetime)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 }

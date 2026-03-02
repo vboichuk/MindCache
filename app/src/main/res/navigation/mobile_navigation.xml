@@ -55,8 +55,6 @@
 
     <action
         android:id="@+id/action_global_auth"
-        app:destination="@id/nav_auth"
-        app:popUpTo="@id/nav_auth"
-        app:popUpToInclusive="true" />
+        app:destination="@id/nav_auth" />
 
 </navigation>

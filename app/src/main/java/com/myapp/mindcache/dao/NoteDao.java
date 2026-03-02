@@ -26,9 +26,8 @@ public interface NoteDao {
             "               THEN SUBSTR(title, 1, 32) || '...' " +
             "               ELSE title END " +
             "     ELSE NULL END as titleHint " +
-            "FROM notes ORDER BY created_at DESC " +
-            "LIMIT :limit")
-    LiveData<List<NoteMetadata>> getNotesMetadata(int limit);
+            "FROM notes ORDER BY created_at DESC")
+    LiveData<List<NoteMetadata>> getNotesMetadata();
 
     // Полная заметка по ID (зашифрованная)
     @Query("SELECT * FROM notes WHERE id = :id")
