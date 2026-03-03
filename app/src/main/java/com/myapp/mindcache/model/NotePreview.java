@@ -12,7 +12,6 @@ public class NotePreview {
     private final long createdAt;
     private String title;
     private String preview; // 3 строки
-    private final String salt;
     private boolean isSecret;
 
     public void setEncrypted(boolean encrypted) {
@@ -29,26 +28,20 @@ public class NotePreview {
         this.createdAt = other.createdAt;
         this.title = other.title;
         this.preview = other.preview;
-        this.salt = other.salt;
         this.isSecret = other.isSecret;
         this.isEncrypted = other.isEncrypted;
     }
 
-    public NotePreview(long id, String title, String preview, long createdAt, boolean isSecret, String salt) {
+    public NotePreview(long id, String title, String preview, long createdAt, boolean isSecret) {
         this.id = id;
         this.title = title;
         this.preview = preview;
         this.createdAt = createdAt;
         this.isSecret = isSecret;
-        this.salt = salt;
-        this.isEncrypted = salt != null;
+        this.isEncrypted = true;
     }
 
     public long getId() { return id; }
-
-    public String getSalt() {
-        return salt;
-    }
 
     public LocalDateTime getCreatedAt() {
         return LocalDateTime.ofInstant(
@@ -62,15 +55,8 @@ public class NotePreview {
 
     public String getPreview() { return preview; }
 
-    public boolean isEncrypted() { return isEncrypted; }
-
     public boolean isSecret() {
         return isSecret;
-    }
-
-
-    public void setSecret(boolean secret) {
-        isSecret = secret;
     }
 
     public void setTitle(String title) {
@@ -87,12 +73,16 @@ public class NotePreview {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         NotePreview that = (NotePreview) o;
-        return id == that.id && createdAt == that.createdAt && isSecret == that.isSecret && Objects.equals(title, that.title) && Objects.equals(preview, that.preview) && Objects.equals(salt, that.salt);
+        return id == that.id
+                && createdAt == that.createdAt
+                && isSecret == that.isSecret
+                && Objects.equals(title, that.title)
+                && Objects.equals(preview, that.preview);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, createdAt, title, preview, salt, isSecret);
+        return Objects.hash(id, createdAt, title, preview, isSecret);
     }
 
 }

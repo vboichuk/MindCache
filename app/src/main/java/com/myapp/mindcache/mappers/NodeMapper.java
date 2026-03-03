@@ -10,25 +10,13 @@ import java.util.Optional;
 
 public abstract class NodeMapper {
 
-    public static NotePreview toPreview(Note note) {
-        return new NotePreview(
-                note.getId(),
-                note.getTitle(),
-                note.getPreview(),
-                note.getCreatedAt(),
-                note.isSecret(),
-                note.getSalt()
-        );
-    }
-
     public static NotePreview toPreview(NoteMetadata metadata) {
         NotePreview notePreview = new NotePreview(
                 metadata.id,
                 Optional.ofNullable(metadata.titleHint).orElse("Secret note"),
                 "",
                 metadata.createdAt,
-                metadata.isSecret,
-                null);
+                metadata.isSecret);
         notePreview.setEncrypted(metadata.isSecret);
         return notePreview;
     }

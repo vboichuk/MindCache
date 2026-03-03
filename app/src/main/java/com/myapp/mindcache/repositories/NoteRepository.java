@@ -42,16 +42,12 @@ public class NoteRepository {
 
     public Single<NotePreview> getDecryptedPreview(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedPreviewById(noteId)
-                .map(encryptedNote -> encryptedNote.isEncrypted()
-                        ? encryptionService.decryptPreview(encryptedNote, masterKey)
-                        : encryptedNote);
+                .map(encryptedNote -> encryptionService.decryptPreview(encryptedNote, masterKey));
     }
 
     public Single<Note> getDecryptedNote(long noteId, byte[] masterKey) {
         return noteDao.getEncryptedNoteById(noteId)
-                .map(encryptedNote -> encryptedNote.isEncrypted()
-                        ? encryptionService.decryptNote(encryptedNote, masterKey)
-                        : encryptedNote);
+                .map(encryptedNote -> encryptionService.decryptNote(encryptedNote, masterKey));
     }
 
     public Single<Note> insertNote(NoteCreateDto dto, byte[] masterKey) {

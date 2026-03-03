@@ -20,7 +20,6 @@ public class NoteEncryptionService {
 
         assert note.isSecret();
 
-        byte[] salt = keyGenerator.generateSalt();
         SecretKey key = new SecretKeySpec(masterKey, "AES");
         // SecretKey key = keyGenerator.deriveSecretKey(password, salt);
 
@@ -34,7 +33,7 @@ public class NoteEncryptionService {
                 content,
                 preview,
                 note.getCreatedAt(),
-                Base64.getEncoder().encodeToString(salt)
+                true
         );
     }
 

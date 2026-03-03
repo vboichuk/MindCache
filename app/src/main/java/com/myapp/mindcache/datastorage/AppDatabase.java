@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
 
 @Database(
         entities = { Note.class, MasterKeyEntity.class },
-        version = 3)
+        version = 4)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase INSTANCE;
@@ -61,6 +61,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 })
                 .addMigrations(MIGRATION_1_2) // Добавляем все миграции
                 .addMigrations(MIGRATION_2_3) // Добавляем все миграции
+                .addMigrations(MIGRATION_3_4) // Добавляем все миграции
                 .setJournalMode(JournalMode.TRUNCATE) // Оптимизация для записи
                 // .fallbackToDestructiveMigration() // Только для разработки!
                 .setQueryCallback((sqlQuery, bindArgs) ->
@@ -102,6 +103,15 @@ public abstract class AppDatabase extends RoomDatabase {
                             "`created_at` INTEGER NOT NULL" +
                             ")"
             );
+        }
+    };
+
+    // Миграции (пример для будущих версий)
+    private static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Реализация миграции при необходимости
+            database.execSQL("ALTER TABLE notes DROP COLUMN salt");
         }
     };
 

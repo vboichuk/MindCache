@@ -12,7 +12,6 @@ import androidx.lifecycle.MutableLiveData;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.exception.AuthError;
-import com.myapp.mindcache.mappers.NodeMapper;
 import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.repositories.NoteRepository;
 import com.myapp.mindcache.model.Note;
@@ -133,20 +132,16 @@ public class NotesViewModel extends AndroidViewModel {
             return Single.just(Note.createEmpty());
         }
 
-        byte[] password;
+        byte[] masterKey;
         try {
-            password = keyManager.getMasterKey();
+            masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception e) {
             errors.postValue(e);
             return Single.error(e);
         }
 
-        return repository.getDecryptedNote(noteId, password)
-                .subscribeOn(Schedulers.io())
-                .map(note -> {
-                    addToCache(note);
-                    return note;
-                });
+        return repository.getDecryptedNote(noteId, masterKey)
+                .subscribeOn(Schedulers.io());
     }
 
     public Completable addNote(NoteCreateDto dto) {
@@ -231,7 +226,14 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     private void addToCache(Note note) {
-        addToCache(NodeMapper.toPreview(note));
+        NotePreview notePreview = new NotePreview(
+                note.getId(),
+                note.getTitle(),
+                note.getPreview(),
+                note.getCreatedAt(),
+                note.isSecret()
+        );
+        addToCache(notePreview);
     }
 
     private void removeFromCache(long id) {

@@ -1,5 +1,6 @@
 package com.myapp.mindcache.model;
 
+import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
@@ -16,7 +17,6 @@ public class Note {
     private String title;    // encrypted
     private String content;  // encrypted
     private String preview;  // encrypted
-    private String salt;     // Base64-соль (null, если заметка не зашифрована)
 
     @Ignore
     private boolean isSecret;
@@ -27,22 +27,20 @@ public class Note {
         this.content = content;
         this.preview = preview;
         this.createdAt = createdAt;
-        this.salt = null;
         this.isSecret = secret;
     }
 
     public static Note createEmpty() {
-        return new Note(0L, "", "", "", System.currentTimeMillis(), null);
+        return new Note(0L, "", "", "", System.currentTimeMillis());
     }
 
-    public Note(long id, String title, String content, String preview, long createdAt, String salt) {
+    public Note(long id, String title, String content, String preview, long createdAt) {
         this.id = id;
         this.title = title;
         this.content = content;
         this.preview = preview;
         this.createdAt = createdAt;
-        this.salt = salt;
-        this.isSecret = salt != null;
+        this.isSecret = true;
     }
 
     @Ignore
@@ -70,8 +68,7 @@ public class Note {
         this.content = other.content;
         this.preview = other.preview;
         this.createdAt = other.createdAt;
-        this.salt = other.salt;
-        this.isSecret = salt != null;
+        this.isSecret = other.isSecret;
     }
 
     public long getId() {
@@ -88,10 +85,6 @@ public class Note {
 
     public String getContent() {
         return content;
-    }
-
-    public String getSalt() {
-        return salt;
     }
 
     public String getPreview() {
@@ -121,11 +114,11 @@ public class Note {
 
     public void setSecret(boolean secret) {
         this.isSecret = secret;
-        if (!isSecret)
-            salt = null;
     }
 
-    public boolean isEncrypted() {
-        return salt != null;
+    @NonNull
+    @Override
+    public String toString() {
+        return "Note{" + (title == null ? "null" : title.substring(0,3) + ", " + (content == null ? "null" : content.substring(0, 5)) + "}");
     }
 }

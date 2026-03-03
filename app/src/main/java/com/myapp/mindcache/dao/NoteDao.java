@@ -20,12 +20,8 @@ public interface NoteDao {
     @Query("SELECT " +
             "id, " +
             "created_at as createdAt, " +
-            "CASE WHEN salt IS NULL THEN 0 ELSE 1 END as isSecret, " +
-            "CASE WHEN salt IS NULL AND title IS NOT NULL " +
-            "     THEN CASE WHEN LENGTH(title) > 32 " +
-            "               THEN SUBSTR(title, 1, 32) || '...' " +
-            "               ELSE title END " +
-            "     ELSE NULL END as titleHint " +
+            "1 as isSecret, " +
+            "NULL as titleHint " +
             "FROM notes ORDER BY created_at DESC")
     LiveData<List<NoteMetadata>> getNotesMetadata();
 
@@ -36,10 +32,9 @@ public interface NoteDao {
     // Неполная заметка по ID (зашифрованная)
     @Query("SELECT " +
             "id, " +
-            "CASE WHEN salt IS NULL THEN 0 ELSE 1 END as isSecret, " +
+            "1 as isSecret, " +
             "title, " +
             "preview, " +
-            "salt, " +
             "created_at as createdAt " +
             "FROM notes " +
             "WHERE id = :id " +
@@ -60,6 +55,4 @@ public interface NoteDao {
 
     @Query("UPDATE notes SET created_at = :millisBack WHERE id = :id")
     void changeDatetime(Long id, long millisBack);
-
-
 }

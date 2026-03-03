@@ -127,7 +127,8 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
     public void updateItems(Collection<NotePreview> updatedNotes) {
         boolean changed = false;
         for (NotePreview note : updatedNotes) {
-            // Log.d(TAG, "updateItem '" + note.getTitle() + "' + [" + note.getPreview() + "]");
+
+            Log.d(TAG, "updateItem '" + note.getTitle() + "' + [" + note.getPreview() + "]");
             Integer pos = positionCache.get(note.getId());
             if (pos != null && !notesAreEqual(displayList.get(pos), note)) {
                 displayList.set(pos, note);
