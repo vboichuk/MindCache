@@ -163,7 +163,7 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         NotePreview note = getNote(position);
 
         // Если заметка не расшифрована и видна - сообщаем через коллбэк
-        if (note.getPreview().isEmpty()) { // HACK
+        if (note.isEncrypted()) {
             visibleListener.onItemVisible(note.getId());
         }
 
@@ -171,12 +171,9 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         holder.tvDateMon.setText(note.getCreatedAt().format(formatterMon));
 
         holder.tvEmoji.setText(note.getEmoji());
-        holder.tvLock.setVisibility(note.isSecret() ? View.VISIBLE : View.INVISIBLE);
 
         holder.tvTitle.setText(note.getTitle());
         holder.tvPreview.setText(note.getPreview());
-        // Log.d(TAG, "note [" + note.getId() + "] preview: '" + note.getPreview() + "'");
-        // holder.tvSalt.setText(note.getSalt());
         holder.tvId.setText(String.valueOf(note.getId()));
 
         holder.itemView.setOnClickListener(v -> clickListener.onItemClick(note));

@@ -1,67 +1,56 @@
 package com.myapp.mindcache.security;
 
+import androidx.annotation.NonNull;
+
+import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NotePreview;
-
-import java.util.Base64;
+import com.myapp.mindcache.repositories.NoteRepository;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 public class NoteEncryptionService {
-    private static final String TAG = NoteEncryptionService.class.getSimpleName();
-    private final KeyGenerator keyGenerator;
 
-    public NoteEncryptionService(KeyGenerator keyGenerator) {
-        this.keyGenerator = keyGenerator;
+    public NoteEncryptionService() {
     }
 
-    public Note encryptNote(Note note, byte[] masterKey) throws Exception {
-
-        assert note.isSecret();
+    public EncryptedNote encryptNote(@NonNull Note note, byte[] masterKey) throws Exception {
 
         SecretKey key = new SecretKeySpec(masterKey, "AES");
-        // SecretKey key = keyGenerator.deriveSecretKey(password, salt);
 
         String title = CryptoHelper.encrypt(note.getTitle(), key);
         String content = CryptoHelper.encrypt(note.getContent(), key);
-        String preview = CryptoHelper.encrypt(note.getPreview(), key);
+        String preview = CryptoHelper.encrypt(NoteRepository.getPreview(note.getContent()) , key);
 
-        return new Note(
+        return new EncryptedNote(
                 note.getId(),
                 title,
                 content,
                 preview,
-                note.getCreatedAt(),
-                true
+                note.getCreatedAt()
         );
     }
 
-    public NotePreview decryptPreview(NotePreview encryptedNote, byte[] masterKey) throws Exception {
+    public NotePreview decryptPreview(@NonNull NotePreview note, byte[] masterKey) throws Exception {
 
-        assert encryptedNote.isSecret();
+        String title = new String(CryptoHelper.decrypt(note.getTitle(), masterKey));
+        String preview = new String(CryptoHelper.decrypt(note.getPreview(), masterKey));
 
-        String title = new String(CryptoHelper.decrypt(encryptedNote.getTitle(), masterKey));
-        String preview = encryptedNote.getPreview().isEmpty()
-                ? ""
-                : new String(CryptoHelper.decrypt(encryptedNote.getPreview(), masterKey));
-
-        NotePreview notePreview = new NotePreview(encryptedNote);
+        NotePreview notePreview = new NotePreview(note);
         notePreview.setTitle(title);
         notePreview.setPreview(preview);
+        notePreview.setEncrypted(false);
 
         return notePreview;
     }
 
-    public Note decryptNote(Note encryptedNote, byte[] masterKey) throws Exception {
-
-        assert encryptedNote.isSecret();
+    public Note decryptNote(@NonNull EncryptedNote encryptedNote, byte[] masterKey) throws Exception {
 
         return new Note(
                 encryptedNote.getId(),
                 new String(CryptoHelper.decrypt(encryptedNote.getTitle(), masterKey)),
                 new String(CryptoHelper.decrypt(encryptedNote.getContent(), masterKey)),
-                encryptedNote.getCreatedAt(),
-                true);
+                encryptedNote.getCreatedAt());
     }
 }

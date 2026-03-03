@@ -11,6 +11,7 @@ import com.myapp.mindcache.dao.NoteDao;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.mappers.NodeMapper;
+import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.model.NotePreview;
@@ -50,17 +51,17 @@ public class NoteRepository {
                 .map(encryptedNote -> encryptionService.decryptNote(encryptedNote, masterKey));
     }
 
-    public Single<Note> insertNote(NoteCreateDto dto, byte[] masterKey) {
+    public Single<NotePreview> insertNote(NoteCreateDto dto, byte[] masterKey) {
         if (dto == null || TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Single.error(new IllegalArgumentException("Note data is invalid"));
         }
 
         return Single.fromCallable(() -> {
                     Note note = NodeMapper.fromDto(dto);
-                    note.setPreview(getPreview(dto.getContent()));
-                    long id = noteDao.insert(encryptNoteIfNeeded(masterKey, note));
+                    EncryptedNote encryptedNote = encryptionService.encryptNote(note, masterKey);
+                    long id = noteDao.insert(encryptedNote);
                     note.setId(id);
-                    return note;
+                    return NodeMapper.toPreview(note);
                 })
                 .subscribeOn(Schedulers.io());
     }
@@ -85,34 +86,28 @@ public class NoteRepository {
                 .subscribeOn(Schedulers.io());
     }
 
-    public Single<Note> updateNote(NoteUpdateDto dto, byte[] masterKey) {
+    public Single<NotePreview> updateNote(NoteUpdateDto dto, byte[] masterKey) {
         if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
             return Single.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
         return Single.fromCallable(() -> {
-                    Note existing = noteDao.getById(dto.getId());
+                    EncryptedNote existing = noteDao.getById(dto.getId());
                     if (existing == null) {
                         throw new IllegalArgumentException("Note with ID " + dto.getId() + " not found");
                     }
 
-                    Note updated = new Note(existing);
-                    updated.setTitle(dto.getTitle());
-                    updated.setContent(dto.getContent());
-                    updated.setPreview(getPreview(dto.getContent()));
-                    updated.setSecret(dto.isSecret());
-                    noteDao.update(encryptNoteIfNeeded(masterKey, updated));
+                    existing.setTitle(dto.getTitle());
+                    existing.setContent(dto.getContent());
+                    existing.setPreview(getPreview(dto.getContent()));
+
+                    Note note = NodeMapper.fromDto(dto);
+                    EncryptedNote encrypted = encryptionService.encryptNote(note, masterKey);
+                    noteDao.update(encrypted);
                     Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
-                    return updated;
+                    return NodeMapper.toPreview(note);
                 })
                 .subscribeOn(Schedulers.io());
-    }
-
-    private Note encryptNoteIfNeeded(byte[] masterKey, Note existingNote) throws Exception {
-        if (existingNote.isSecret()) {
-            return encryptionService.encryptNote(existingNote, masterKey);
-        }
-        return existingNote;
     }
 
     public Completable updateDateTime(long id, LocalDateTime datetime) {
@@ -126,5 +121,4 @@ public class NoteRepository {
                 .doOnComplete(() -> Log.d(TAG, "Date updated: " + id))
                 .doOnError(error -> Log.e(TAG, "Date update failed: " + id, error));
     }
-
 }

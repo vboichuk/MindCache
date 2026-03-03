@@ -8,7 +8,7 @@ import androidx.room.Update;
 
 import io.reactivex.Single;
 
-import com.myapp.mindcache.model.Note;
+import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.model.NotePreview;
 
@@ -27,7 +27,7 @@ public interface NoteDao {
 
     // Полная заметка по ID (зашифрованная)
     @Query("SELECT * FROM notes WHERE id = :id")
-    Single<Note> getEncryptedNoteById(long id);
+    Single<EncryptedNote> getEncryptedNoteById(long id);
 
     // Неполная заметка по ID (зашифрованная)
     @Query("SELECT " +
@@ -42,16 +42,16 @@ public interface NoteDao {
     Single<NotePreview> getEncryptedPreviewById(long id);
 
     @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
-    Note getById(long id);
+    EncryptedNote getById(long id);
 
     @Insert
-    long insert(Note note);
+    long insert(EncryptedNote note);
 
     @Query("DELETE FROM notes WHERE id = :id")
     int delete(long id);
 
     @Update
-    void update(Note note);
+    void update(EncryptedNote note);
 
     @Query("UPDATE notes SET created_at = :millisBack WHERE id = :id")
     void changeDatetime(Long id, long millisBack);

@@ -13,6 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.myapp.mindcache.dao.MasterKeyDao;
 import com.myapp.mindcache.dao.NoteDao;
+import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.MasterKeyEntity;
 import com.myapp.mindcache.model.Note;
 
@@ -24,7 +25,7 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
 @Database(
-        entities = { Note.class, MasterKeyEntity.class },
+        entities = { EncryptedNote.class, MasterKeyEntity.class },
         version = 4)
 public abstract class AppDatabase extends RoomDatabase {
 

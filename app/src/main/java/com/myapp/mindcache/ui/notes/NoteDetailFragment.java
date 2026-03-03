@@ -39,6 +39,7 @@ public class NoteDetailFragment extends BaseFragment {
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
 
     private long noteId = 0L;
+    private long datetime = 0L;
 
     private FragmentNoteDetailBinding binding;
 
@@ -112,6 +113,7 @@ public class NoteDetailFragment extends BaseFragment {
     }
 
     private void displayNote(Note note) {
+
         if (!isAdded() || getView() == null)
             return;
 
@@ -120,8 +122,8 @@ public class NoteDetailFragment extends BaseFragment {
 
         binding.noteTitle.setText(note.getTitle());
         binding.noteContent.setText(note.getContent());
-        binding.switchSecret.setChecked(note.isSecret());
-        binding.switchSecret.jumpDrawablesToCurrentState();
+
+        datetime = note.getCreatedAt(); // TODO
 
         LocalDateTime dateTime = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(note.getCreatedAt()),
@@ -134,13 +136,12 @@ public class NoteDetailFragment extends BaseFragment {
 
         String title = binding.noteTitle.getText().toString().trim();
         String content = binding.noteContent.getText().toString().trim();
-        boolean isSecret = binding.switchSecret.isChecked();
 
-        viewModel.saveDraft(noteId, title, content, isSecret);
+        viewModel.saveDraft(noteId, title, content);
 
         Completable operation = noteId > 0L
-                ? viewModel.updateNote(new NoteUpdateDto(noteId, title, content, isSecret))
-                : viewModel.addNote(new NoteCreateDto(title, content, isSecret, System.currentTimeMillis()));
+                ? viewModel.updateNote(new NoteUpdateDto(noteId, title, content, datetime))
+                : viewModel.addNote(new NoteCreateDto(title, content, System.currentTimeMillis()));
 
         Disposable disposable = operation
                 .observeOn(AndroidSchedulers.mainThread())

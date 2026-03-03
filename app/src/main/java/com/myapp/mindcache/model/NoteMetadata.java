@@ -5,13 +5,10 @@ public class NoteMetadata {
 
     public final Long id;
     public final Long createdAt;
-    public final boolean isSecret;
-    public String titleHint;
 
-    public NoteMetadata(Long id, Long createdAt, boolean isSecret) {
+    public NoteMetadata(Long id, Long createdAt) {
         this.id = id;
         this.createdAt = createdAt;
-        this.isSecret = isSecret;
     }
 
     public Long getId() {

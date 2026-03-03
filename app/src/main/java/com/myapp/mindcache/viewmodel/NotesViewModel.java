@@ -57,7 +57,7 @@ public class NotesViewModel extends AndroidViewModel {
         this.keyManager = keyManager;
         try {
             KeyGenerator generator = new KeyGeneratorImpl();
-            NoteEncryptionService service = new NoteEncryptionService(generator);
+            NoteEncryptionService service = new NoteEncryptionService();
             repository = new NoteRepository(application, service);
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize NoteRepository", e);
@@ -152,20 +152,17 @@ public class NotesViewModel extends AndroidViewModel {
 
         byte[] masterKey;
         try {
-            masterKey = dto.isSecret()
-                    ? keyManager.getMasterKey()
-                    : null;
+            masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception  e) {
             errors.postValue(e);
             return Completable.error(e);
         }
 
         return repository.insertNote(dto, masterKey)
-                .doOnSuccess(
-                        note -> {
-                            addToCache(note);
+                .doOnSuccess(notePreview -> {
+                            addToCache(notePreview);
                             clearDraft(0L);
-                            Log.i(TAG, "Successfully added note with id: " + note.getId());
+                            Log.i(TAG, "Successfully added note with id: " + notePreview.getId());
                         })
                 .ignoreElement()
                 .subscribeOn(Schedulers.io());
@@ -183,8 +180,8 @@ public class NotesViewModel extends AndroidViewModel {
             return Completable.error(e);
         }
         return repository.updateNote(updateDto, masterKey)
-                .doOnSuccess(note -> {
-                    addToCache(note);
+                .doOnSuccess(notePreview -> {
+                    addToCache(notePreview);
                     clearDraft(updateDto.getId());
                 })
                 .ignoreElement()
@@ -192,8 +189,8 @@ public class NotesViewModel extends AndroidViewModel {
                 .doOnError(errors::postValue);
     }
 
-    public void saveDraft(long noteId, String title, String content, boolean secret) {
-        noteDraft = new Note(noteId, title, content, "", System.currentTimeMillis(), secret);
+    public void saveDraft(long noteId, String title, String content) {
+        noteDraft = new Note(noteId, title, content, System.currentTimeMillis());
     }
 
     public Optional<Note> getDraftForNote(long noteId) {
@@ -223,17 +220,6 @@ public class NotesViewModel extends AndroidViewModel {
             current.put(newNote.getId(), newNote);
             decryptedNotes.postValue(current);
         }
-    }
-
-    private void addToCache(Note note) {
-        NotePreview notePreview = new NotePreview(
-                note.getId(),
-                note.getTitle(),
-                note.getPreview(),
-                note.getCreatedAt(),
-                note.isSecret()
-        );
-        addToCache(notePreview);
     }
 
     private void removeFromCache(long id) {

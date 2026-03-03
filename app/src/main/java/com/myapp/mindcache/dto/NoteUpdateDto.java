@@ -5,13 +5,15 @@ public class NoteUpdateDto {
     private final Long id;
     private final String title;
     private final String content;
-    private final boolean isSecret;
 
-    public NoteUpdateDto(Long id, String title, String content, boolean isSecret) {
+
+    private final long createdAt;
+
+    public NoteUpdateDto(Long id, String title, String content, long createdAt) {
         this.id = id;
         this.title = title;
         this.content = content;
-        this.isSecret = isSecret;
+        this.createdAt = createdAt;
     }
 
     public Long getId() {
@@ -26,7 +28,8 @@ public class NoteUpdateDto {
         return content;
     }
 
-    public boolean isSecret() {
-        return isSecret;
+    public long getCreatedAt() {
+        return createdAt;
     }
+
 }

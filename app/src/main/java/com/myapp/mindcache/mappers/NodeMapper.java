@@ -1,11 +1,11 @@
 package com.myapp.mindcache.mappers;
 
 import com.myapp.mindcache.dto.NoteCreateDto;
+import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
-
-import java.util.Optional;
+import com.myapp.mindcache.repositories.NoteRepository;
 
 
 public abstract class NodeMapper {
@@ -13,30 +13,35 @@ public abstract class NodeMapper {
     public static NotePreview toPreview(NoteMetadata metadata) {
         NotePreview notePreview = new NotePreview(
                 metadata.id,
-                Optional.ofNullable(metadata.titleHint).orElse("Secret note"),
+                "Secret note",
                 "",
-                metadata.createdAt,
-                metadata.isSecret);
-        notePreview.setEncrypted(metadata.isSecret);
+                metadata.createdAt);
+        notePreview.setEncrypted(true);
         return notePreview;
+    }
+
+    public static NotePreview toPreview(Note note) {
+        return new NotePreview(
+                note.getId(),
+                note.getTitle(),
+                NoteRepository.getPreview(note.getContent()),
+                note.getCreatedAt()
+        );
     }
 
     public static Note fromDto(NoteCreateDto dto) {
         return new Note(
                 dto.getTitle(),
                 dto.getContent(),
-                null,
-                dto.getCreatedAt(),
-                dto.isSecret());
+                NoteRepository.getPreview(dto.getContent()),
+                dto.getCreatedAt());
     }
 
-    private static String getEmojiForNote(Note note) {
-        String lowerTitle = note.getTitle().toLowerCase();
-        if (lowerTitle.contains("важно")) return "❗";
-        if (lowerTitle.contains("идея")) return "💡";
-        if (lowerTitle.contains("задача")) return "✅";
-        if (lowerTitle.contains("мысли")) return "💭";
-        if (lowerTitle.contains("мысль")) return "💭";
-        return "📘";
+    public static Note fromDto(NoteUpdateDto dto) {
+        return new Note(
+                dto.getId(),
+                dto.getTitle(),
+                dto.getContent(),
+                dto.getCreatedAt());
     }
 }
