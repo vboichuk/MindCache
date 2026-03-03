@@ -1,14 +1,17 @@
 package com.myapp.mindcache.mappers;
 
 import com.myapp.mindcache.dto.NoteCreateDto;
-import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
-import com.myapp.mindcache.repositories.NoteRepository;
 
 
-public abstract class NodeMapper {
+public final class NoteMapper {
+
+    private static final int MAX_PREVIEW_LENGTH = 100;
+    private static final String ELLIPSIS = "…";
+
+    private NoteMapper() { }
 
     public static NotePreview toPreview(NoteMetadata metadata) {
         NotePreview notePreview = new NotePreview(
@@ -24,7 +27,7 @@ public abstract class NodeMapper {
         return new NotePreview(
                 note.getId(),
                 note.getTitle(),
-                NoteRepository.getPreview(note.getContent()),
+                NoteMapper.generatePreview(note.getContent()),
                 note.getCreatedAt()
         );
     }
@@ -33,15 +36,16 @@ public abstract class NodeMapper {
         return new Note(
                 dto.getTitle(),
                 dto.getContent(),
-                NoteRepository.getPreview(dto.getContent()),
+                NoteMapper.generatePreview(dto.getContent()),
                 dto.getCreatedAt());
     }
 
-    public static Note fromDto(NoteUpdateDto dto) {
-        return new Note(
-                dto.getId(),
-                dto.getTitle(),
-                dto.getContent(),
-                dto.getCreatedAt());
+    public static String generatePreview(String content) {
+        if (content == null || content.isBlank())
+            return "";
+
+        return content.length() <= MAX_PREVIEW_LENGTH
+                ? content
+                : content.substring(0, MAX_PREVIEW_LENGTH) + ELLIPSIS;
     }
 }

@@ -3,6 +3,8 @@ package com.myapp.mindcache.repositories;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.room.EmptyResultSetException;
+
 import com.myapp.mindcache.dao.MasterKeyDao;
 import com.myapp.mindcache.datastorage.AppDatabase;
 import com.myapp.mindcache.model.MasterKeyEntity;
@@ -19,16 +21,15 @@ public class MasterKeyRepository {
     public MasterKeyRepository(Context context) {
         AppDatabase db = AppDatabase.getInstance(context);
         this.masterKeyDao = db.masterKeyDao();
-
     }
 
     public Single<MasterKeyEntity> getMasterKeySingle() {
-        return Single.fromCallable(() -> {
-                    MasterKeyEntity entity = masterKeyDao.getMasterKeyDirect();
-                    if (entity == null) {
-                        throw new IllegalStateException("Master key not found");
+        return masterKeyDao.getMasterKeyDirect()
+                .onErrorResumeNext(throwable -> {
+                    if (throwable instanceof EmptyResultSetException) {
+                        return Single.error(new IllegalStateException("Master key not found"));
                     }
-                    return entity;
+                    return Single.error(throwable);
                 })
                 .subscribeOn(Schedulers.io())
                 .doOnError(e -> Log.e(TAG, "Error getting master key", e));
@@ -38,7 +39,7 @@ public class MasterKeyRepository {
         return masterKeyDao.exists();
     }
 
-    public Completable deleteMasterKey(long id) {
+    public Completable deleteMasterKey() {
         return Completable.fromAction(() -> {
                     masterKeyDao.deleteAll();
                     Log.i(TAG, "MasterKey was deleted from from database");

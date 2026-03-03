@@ -8,6 +8,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.myapp.mindcache.exception.AuthError;
+import com.myapp.mindcache.exception.CryptoException;
 import com.myapp.mindcache.model.MasterKeyEntity;
 import com.myapp.mindcache.repositories.MasterKeyRepository;
 
@@ -18,6 +19,7 @@ import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -93,7 +95,7 @@ public class KeyManagerImpl implements KeyManager {
         byte[] authSalt = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_SALT, ""));
         byte[] hash;
         try {
-            hash = keyGenerator.deriveKey(password, authSalt);
+            hash = keyGenerator.generatePBKDF2Key(password, authSalt);
         } catch (CryptoException e) {
             throw new RuntimeException(e.getMessage());
         }
@@ -119,8 +121,7 @@ public class KeyManagerImpl implements KeyManager {
                                 .concatWith(Completable.fromAction( () -> saveAuthInfo(credentials.authSalt, credentials.passwordHash)))
                                 .concatWith((Completable.fromAction(() -> cacheMasterKey(credentials.masterKey))))
                 )
-                .doOnComplete(() -> Log.i(TAG, "User registered successfully"))
-                .subscribeOn(Schedulers.io());
+                .doOnComplete(() -> Log.i(TAG, "User registered successfully"));
     }
 
     /**
@@ -181,7 +182,7 @@ public class KeyManagerImpl implements KeyManager {
     }
 
     @Override
-    public byte[] getMasterKey() throws AuthError {
+    public SecretKey getMasterKey() throws AuthError {
 
         if (cachedMasterKey == null && cacheTimestamp == 0L)
             throw new AuthError(AuthError.Reason.NOT_AUTHENTICATED);
@@ -191,14 +192,14 @@ public class KeyManagerImpl implements KeyManager {
             throw new AuthError(AuthError.Reason.SESSION_EXPIRED);
         }
 
-
-        return Arrays.copyOf(cachedMasterKey, cachedMasterKey.length);
+        // проблема: KeyManagerImpl раздает SecretKeySpec наружу
+        return keyGenerator.generateAESKey(cachedMasterKey);
     }
 
     private Single<byte[]> decryptMasterKey(char[] password, MasterKeyEntity mk) throws Exception {
-        SecretKey keyFromPassword = keyGenerator.deriveSecretKey(password, mk.keySalt);
-        byte[] masterKey = CryptoHelper.decrypt(mk.encryptedKey, keyFromPassword);
-        Arrays.fill(keyFromPassword.getEncoded(), (byte)0);
+        byte[] keyFromPassword = keyGenerator.generatePBKDF2Key(password, mk.keySalt);
+        SecretKey aes = keyGenerator.generateAESKey(keyFromPassword);
+        byte[] masterKey = CryptoHelper.decrypt(mk.encryptedKey, aes);
         return Single.just(masterKey);
     }
 
@@ -209,17 +210,12 @@ public class KeyManagerImpl implements KeyManager {
 
     private @NonNull Credentials generateCredentials(@NonNull char[] password, @NonNull byte[] masterKey) throws Exception {
         byte[] authSalt = keyGenerator.generateSalt();
-        byte[] passwordHash = keyGenerator.deriveKey(password, authSalt);
+        byte[] passwordHash = keyGenerator.generatePBKDF2Key(password, authSalt);
         byte[] keySalt = keyGenerator.generateSalt();
 
-        SecretKey keyFromPassword = keyGenerator.deriveSecretKey(password, keySalt);
-        byte[] passwordEncryptedKey = CryptoHelper.encrypt(masterKey, keyFromPassword);
-
-        byte[] keyFromPasswordEncoded = keyFromPassword.getEncoded();
-        if (keyFromPasswordEncoded != null) {
-            Arrays.fill(keyFromPasswordEncoded, (byte) 0);
-        }
-
+        byte[] keyFromPassword = keyGenerator.generatePBKDF2Key(password, keySalt);
+        SecretKey aes = keyGenerator.generateAESKey(keyFromPassword);
+        byte[] passwordEncryptedKey = CryptoHelper.encrypt(masterKey, aes);
         return new Credentials(authSalt, passwordHash, keySalt, masterKey, passwordEncryptedKey);
     }
 
@@ -237,7 +233,7 @@ public class KeyManagerImpl implements KeyManager {
 
     private void validatePassword(@NotNull char[] password) {
         if (password.length < 4)
-            throw new SecurityException("Password length must be at least 4 symbols");
+            throw new IllegalArgumentException("Password length must be at least 4 symbols");
     }
 
     private void saveAuthInfo(byte[] authSalt, byte[] passwordHash) {

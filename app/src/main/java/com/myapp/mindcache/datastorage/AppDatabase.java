@@ -15,7 +15,6 @@ import com.myapp.mindcache.dao.MasterKeyDao;
 import com.myapp.mindcache.dao.NoteDao;
 import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.MasterKeyEntity;
-import com.myapp.mindcache.model.Note;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,9 +59,9 @@ public abstract class AppDatabase extends RoomDatabase {
                         // Действия при первом создании БД
                     }
                 })
-                .addMigrations(MIGRATION_1_2) // Добавляем все миграции
-                .addMigrations(MIGRATION_2_3) // Добавляем все миграции
-                .addMigrations(MIGRATION_3_4) // Добавляем все миграции
+                // .addMigrations(MIGRATION_1_2)
+                // .addMigrations(MIGRATION_2_3)
+                // .addMigrations(MIGRATION_3_4)
                 .setJournalMode(JournalMode.TRUNCATE) // Оптимизация для записи
                 // .fallbackToDestructiveMigration() // Только для разработки!
                 .setQueryCallback((sqlQuery, bindArgs) ->
@@ -88,34 +87,6 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE notes ADD COLUMN preview TEXT DEFAULT ''");
         }
     };
-
-    // Миграции (пример для будущих версий)
-    private static final Migration MIGRATION_2_3 = new Migration(2, 3) {
-        @Override
-        public void migrate(@NonNull SupportSQLiteDatabase database) {
-            // Реализация миграции при необходимости
-            database.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `master_key` (" +
-                            "`id` INTEGER PRIMARY KEY NOT NULL UNIQUE CHECK (id = 1) , " +  // CHECK гарантирует id = 1
-                            "`key_salt` BLOB, " +
-                            "`encrypted_key` BLOB, " +
-                            "`iterations` INTEGER NOT NULL DEFAULT 100000, " +
-                            "`algorithm` TEXT DEFAULT 'PBKDF2WithHmacSHA256', " +
-                            "`created_at` INTEGER NOT NULL" +
-                            ")"
-            );
-        }
-    };
-
-    // Миграции (пример для будущих версий)
-    private static final Migration MIGRATION_3_4 = new Migration(3, 4) {
-        @Override
-        public void migrate(@NonNull SupportSQLiteDatabase database) {
-            // Реализация миграции при необходимости
-            database.execSQL("ALTER TABLE notes DROP COLUMN salt");
-        }
-    };
-
 
     public static boolean exportDatabase(Context context) {
         File databaseFile = context.getDatabasePath(DB_NAME);

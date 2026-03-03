@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.myapp.mindcache.R;
-import com.myapp.mindcache.mappers.NodeMapper;
+import com.myapp.mindcache.mappers.NoteMapper;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.model.NotePreview;
 
@@ -70,7 +70,7 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
                 NotePreview existing = displayList.get(pos);
                 newDisplayList.add(existing);
             } else {
-                newDisplayList.add(NodeMapper.toPreview(meta));
+                newDisplayList.add(NoteMapper.toPreview(meta));
             }
         }
         updateDisplayList(newDisplayList);
@@ -95,7 +95,6 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
             public boolean areContentsTheSame(int oldPos, int newPos) {
                 NotePreview oldItem = oldList.get(oldPos);
                 NotePreview newItem = newList.get(newPos);
-                // Сравниваем по ID + уровень детализации
                 return oldItem.getId() == newItem.getId() &&
                         Objects.equals(oldItem.getTitle(), newItem.getTitle());
             }
@@ -128,7 +127,6 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         boolean changed = false;
         for (NotePreview note : updatedNotes) {
 
-            Log.d(TAG, "updateItem '" + note.getTitle() + "' + [" + note.getPreview() + "]");
             Integer pos = positionCache.get(note.getId());
             if (pos != null && !notesAreEqual(displayList.get(pos), note)) {
                 displayList.set(pos, note);
@@ -170,8 +168,6 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
         holder.tvDateDay.setText(note.getCreatedAt().format(formatterDay));
         holder.tvDateMon.setText(note.getCreatedAt().format(formatterMon));
 
-        holder.tvEmoji.setText(note.getEmoji());
-
         holder.tvTitle.setText(note.getTitle());
         holder.tvPreview.setText(note.getPreview());
         holder.tvId.setText(String.valueOf(note.getId()));
@@ -197,7 +193,6 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
             super(itemView);
             tvDateDay = itemView.findViewById(R.id.tvDateDay);
             tvDateMon = itemView.findViewById(R.id.tvDateMon);
-            tvEmoji = itemView.findViewById(R.id.tvEmoji);
             tvLock = itemView.findViewById(R.id.tvLock);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvPreview = itemView.findViewById(R.id.tvPreview);

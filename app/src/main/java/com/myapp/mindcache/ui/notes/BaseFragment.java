@@ -34,6 +34,8 @@ public abstract class BaseFragment extends Fragment {
     }
 
     protected void showError(@NonNull Throwable error) {
+        String TAG = this.getClass().getSimpleName();
+        Log.e(TAG, error.getMessage(), error);
         if (error instanceof AuthError) {
             AuthError authError = (AuthError) error;
             String message;

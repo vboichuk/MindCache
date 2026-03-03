@@ -39,36 +39,20 @@ public class AuthViewModel extends AndroidViewModel {
         return errorMessage;
     }
 
-    public MutableLiveData<Boolean> getIsLoading() {
-        return isLoading;
-    }
-
-
     public void checkRegistration() {
         isLoading.postValue(true);
-
-        disposables.add(
-                keyManager.isUserRegistered()
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(
-                                isRegistered -> {
-                                    // isLoading.postValue(false);
-                                    if (isRegistered) {
-                                        // Пользователь есть - показываем экран входа
-                                        authState.postValue(AuthState.LOGIN);
-                                    } else {
-                                        // Пользователя нет - показываем экран регистрации
-                                        authState.postValue(AuthState.REGISTER);
-                                    }
-                                },
-                                error -> {
-                                    isLoading.postValue(false);
-                                    errorMessage.postValue("Ошибка проверки: " + error.getMessage());
-                                    Log.e(TAG, "Error checking registration", error);
-                                }
-                        )
-        );
+        Disposable disposable = keyManager.isUserRegistered()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        isRegistered -> authState.postValue(isRegistered ? AuthState.LOGIN : AuthState.REGISTER),
+                        error -> {
+                            isLoading.postValue(false);
+                            errorMessage.postValue(error.getMessage());
+                            Log.e(TAG, "Error checking registration", error);
+                        }
+                );
+        disposables.add(disposable);
     }
 
     @Override

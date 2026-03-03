@@ -1,4 +1,4 @@
-package com.myapp.mindcache.security;
+package com.myapp.mindcache.exception;
 
 public class CryptoException extends Exception {
     public CryptoException(String message) {

@@ -3,7 +3,6 @@ package com.myapp.mindcache.model;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
-import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "notes")
@@ -13,7 +12,7 @@ public class EncryptedNote {
     private long id;
 
     @ColumnInfo(name = "created_at")
-    private final long createdAt;
+    private long createdAt;
     private String title;    // encrypted
     private String content;  // encrypted
     private String preview;  // encrypted
@@ -24,35 +23,6 @@ public class EncryptedNote {
         this.content = content;
         this.preview = preview;
         this.createdAt = createdAt;
-    }
-
-    public static EncryptedNote createEmpty() {
-        return new EncryptedNote(0L, "", "", "", System.currentTimeMillis());
-    }
-
-    @Ignore
-    public EncryptedNote(String title, String content, String preview, long createdAt) {
-        this.title = title;
-        this.content = content;
-        this.preview = preview;
-        this.createdAt = createdAt;
-    }
-
-    @Ignore
-    public EncryptedNote(long id, String title, String content, long createdAt) {
-        this.id = id;
-        this.title = title;
-        this.content = content;
-        this.createdAt = createdAt;
-    }
-
-    @Ignore
-    public EncryptedNote(EncryptedNote other) {
-        this.id = other.id;
-        this.title = other.title;
-        this.content = other.content;
-        this.preview = other.preview;
-        this.createdAt = other.createdAt;
     }
 
     public long getId() {
@@ -89,6 +59,10 @@ public class EncryptedNote {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
     }
 
     @NonNull

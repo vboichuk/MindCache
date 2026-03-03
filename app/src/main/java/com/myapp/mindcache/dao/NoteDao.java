@@ -19,9 +19,7 @@ public interface NoteDao {
 
     @Query("SELECT " +
             "id, " +
-            "created_at as createdAt, " +
-            "1 as isSecret, " +
-            "NULL as titleHint " +
+            "created_at as createdAt " +
             "FROM notes ORDER BY created_at DESC")
     LiveData<List<NoteMetadata>> getNotesMetadata();
 
@@ -32,7 +30,6 @@ public interface NoteDao {
     // Неполная заметка по ID (зашифрованная)
     @Query("SELECT " +
             "id, " +
-            "1 as isSecret, " +
             "title, " +
             "preview, " +
             "created_at as createdAt " +
@@ -52,7 +49,4 @@ public interface NoteDao {
 
     @Update
     void update(EncryptedNote note);
-
-    @Query("UPDATE notes SET created_at = :millisBack WHERE id = :id")
-    void changeDatetime(Long id, long millisBack);
 }

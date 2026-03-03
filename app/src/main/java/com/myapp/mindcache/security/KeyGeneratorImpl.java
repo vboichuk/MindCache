@@ -1,10 +1,11 @@
 package com.myapp.mindcache.security;
 
+import com.myapp.mindcache.exception.CryptoException;
+
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
-import java.util.Arrays;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -20,26 +21,6 @@ public class KeyGeneratorImpl implements KeyGenerator {
     private static final int SALT_LENGTH = 16;
     private static final int MIN_SALT_LENGTH = 16;
 
-    /**
-     * Генерирует ключ AES из пароля пользователя и соли
-     *
-     * @param password Пароль пользователя (будет очищен после использования)
-     * @param salt Соль для усиления безопасности (минимум 16 байт)
-     * @return SecretKey для использования в AES шифровании
-     * @throws CryptoException Если возникла ошибка при генерации ключа
-     */
-    @Override
-    public SecretKey deriveSecretKey(char[] password, byte[] salt) throws CryptoException {
-        byte[] keyBytes = deriveKey(password, salt);
-        SecretKey key = new SecretKeySpec(keyBytes, "AES");
-        // Arrays.fill(keyBytes, (byte) 0);
-        return key;
-    }
-
-    /**
-     * Генерирует соль длиной в 16 байт
-     * @return
-     */
     @Override
     public byte[] generateSalt() {
         byte[] salt = new byte[SALT_LENGTH];
@@ -56,8 +37,16 @@ public class KeyGeneratorImpl implements KeyGenerator {
         return key;
     }
 
+    /**
+     * Генерирует ключ PBKDF2 из пароля пользователя и соли
+     *
+     * @param password Пароль пользователя (будет очищен после использования)
+     * @param salt Соль для усиления безопасности (минимум 16 байт)
+     * @return byte[] для использования в AES шифровании
+     * @throws CryptoException Если возникла ошибка при генерации ключа
+     */
     @Override
-    public byte[] deriveKey(char[] password, byte[] salt) throws CryptoException {
+    public byte[] generatePBKDF2Key(char[] password, byte[] salt) throws CryptoException {
         if (password == null || password.length == 0) {
             throw new IllegalArgumentException("Password cannot be null or empty");
         }
@@ -75,9 +64,11 @@ public class KeyGeneratorImpl implements KeyGenerator {
             throw new CryptoException("PBKDF2 algorithm not available", e);
         } catch (InvalidKeySpecException e) {
             throw new CryptoException("Invalid key specification", e);
-        } finally {
-            // Всегда очищаем пароль после использования
-            // Arrays.fill(password, '\0');
         }
+    }
+
+    @Override
+    public SecretKey generateAESKey(byte[] keyBytes) {
+        return new SecretKeySpec(keyBytes, "AES");
     }
 }

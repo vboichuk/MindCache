@@ -2,6 +2,8 @@ package com.myapp.mindcache.security;
 
 import com.myapp.mindcache.exception.AuthError;
 
+import javax.crypto.SecretKey;
+
 import io.reactivex.Completable;
 import io.reactivex.Single;
 
@@ -15,7 +17,7 @@ public interface KeyManager {
 
     void logout();
 
-    byte[] getMasterKey() throws Exception, AuthError;
+    SecretKey getMasterKey() throws Exception, AuthError;
 
     Completable changePassword(char[] oldPassword, char[] newPassword);
 }

@@ -1,6 +1,5 @@
 package com.myapp.mindcache.dao;
 
-import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -12,11 +11,9 @@ import io.reactivex.Single;
 
 @Dao
 public interface MasterKeyDao {
-    @Query("SELECT * FROM master_key WHERE id = 1")
-    LiveData<MasterKeyEntity> getMasterKey();
 
     @Query("SELECT * FROM master_key WHERE id = 1")
-    MasterKeyEntity getMasterKeyDirect();
+    Single<MasterKeyEntity> getMasterKeyDirect();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(MasterKeyEntity masterKey);

@@ -2,26 +2,24 @@ package com.myapp.mindcache.security;
 
 import androidx.annotation.NonNull;
 
+import com.myapp.mindcache.mappers.NoteMapper;
 import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NotePreview;
-import com.myapp.mindcache.repositories.NoteRepository;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 public class NoteEncryptionService {
 
-    public NoteEncryptionService() {
+    public String encrypt(String text, SecretKey masterKey) throws Exception {
+        return CryptoHelper.encrypt(text, masterKey);
     }
 
-    public EncryptedNote encryptNote(@NonNull Note note, byte[] masterKey) throws Exception {
-
-        SecretKey key = new SecretKeySpec(masterKey, "AES");
+    public EncryptedNote encryptNote(@NonNull Note note, SecretKey key) throws Exception {
 
         String title = CryptoHelper.encrypt(note.getTitle(), key);
         String content = CryptoHelper.encrypt(note.getContent(), key);
-        String preview = CryptoHelper.encrypt(NoteRepository.getPreview(note.getContent()) , key);
+        String preview = CryptoHelper.encrypt(NoteMapper.generatePreview(note.getContent()), key);
 
         return new EncryptedNote(
                 note.getId(),
@@ -32,7 +30,7 @@ public class NoteEncryptionService {
         );
     }
 
-    public NotePreview decryptPreview(@NonNull NotePreview note, byte[] masterKey) throws Exception {
+    public NotePreview decryptPreview(@NonNull NotePreview note, SecretKey masterKey) throws Exception {
 
         String title = new String(CryptoHelper.decrypt(note.getTitle(), masterKey));
         String preview = new String(CryptoHelper.decrypt(note.getPreview(), masterKey));
@@ -45,7 +43,7 @@ public class NoteEncryptionService {
         return notePreview;
     }
 
-    public Note decryptNote(@NonNull EncryptedNote encryptedNote, byte[] masterKey) throws Exception {
+    public Note decryptNote(@NonNull EncryptedNote encryptedNote, SecretKey masterKey) throws Exception {
 
         return new Note(
                 encryptedNote.getId(),
@@ -53,4 +51,6 @@ public class NoteEncryptionService {
                 new String(CryptoHelper.decrypt(encryptedNote.getContent(), masterKey)),
                 encryptedNote.getCreatedAt());
     }
+
+
 }

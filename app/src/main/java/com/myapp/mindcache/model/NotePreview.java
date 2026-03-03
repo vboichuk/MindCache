@@ -11,7 +11,7 @@ public class NotePreview {
     private final long id;
     private final long createdAt;
     private String title;
-    private String preview; // 3 строки
+    private String preview;
 
     @Ignore
     private boolean isEncrypted;
@@ -50,8 +50,6 @@ public class NotePreview {
                 ZoneId.systemDefault());
     }
 
-    public String getEmoji() { return ""; }
-
     public String getTitle() { return title; }
 
     public String getPreview() { return preview; }
@@ -80,5 +78,4 @@ public class NotePreview {
     public int hashCode() {
         return Objects.hash(id, createdAt, title, preview);
     }
-
 }

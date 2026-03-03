@@ -21,13 +21,15 @@ import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.KeyManager;
 import com.myapp.mindcache.security.NoteEncryptionService;
 
-import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import javax.crypto.SecretKey;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -106,7 +108,7 @@ public class NotesViewModel extends AndroidViewModel {
         }
         markAsLoading(noteId);
 
-        byte[] masterKey;
+        SecretKey masterKey;
         try {
             masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception e) {
@@ -118,6 +120,7 @@ public class NotesViewModel extends AndroidViewModel {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSuccess(this::addToCache)
                 .doFinally(() -> unmarkAsLoading(noteId))
+                .doFinally(() -> Arrays.fill(masterKey.getEncoded(), (byte)0))
                 .ignoreElement();
     }
 
@@ -132,7 +135,7 @@ public class NotesViewModel extends AndroidViewModel {
             return Single.just(Note.createEmpty());
         }
 
-        byte[] masterKey;
+        SecretKey masterKey;
         try {
             masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception e) {
@@ -150,7 +153,7 @@ public class NotesViewModel extends AndroidViewModel {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
 
-        byte[] masterKey;
+        SecretKey masterKey;
         try {
             masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception  e) {
@@ -172,7 +175,7 @@ public class NotesViewModel extends AndroidViewModel {
         if (TextUtils.isEmpty(updateDto.getTitle()) || TextUtils.isEmpty(updateDto.getContent())) {
             return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
         }
-        byte[] masterKey;
+        SecretKey masterKey;
         try {
             masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception e) {
@@ -254,11 +257,5 @@ public class NotesViewModel extends AndroidViewModel {
         super.onCleared();
         disposables.dispose();
         Log.d(TAG, "ViewModel cleared");
-    }
-
-    public Completable changeNoteDate(Long id, LocalDateTime datetime) {
-        return repository.updateDateTime(id, datetime)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread());
     }
 }

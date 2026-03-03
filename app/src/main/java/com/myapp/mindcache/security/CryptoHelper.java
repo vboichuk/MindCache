@@ -5,13 +5,20 @@ import android.util.Base64;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 public final class CryptoHelper {
+
+    public static final String ALGORITHM = "AES";
 
     private CryptoHelper() { }
 
@@ -24,12 +31,12 @@ public final class CryptoHelper {
         return toBase64(encrypt(text.getBytes(StandardCharsets.UTF_8), key));
     }
 
-    public static byte[] encrypt(char[] characters, SecretKey key) throws Exception {
-        byte[] bytes = convertCharsToBytes(characters);
-        return encrypt(bytes, key);
-    }
-
-    public static byte[] encrypt(byte[] bytes, SecretKey key) throws Exception {
+    public static byte[] encrypt(byte[] bytes, SecretKey key)
+            throws NoSuchPaddingException,
+            NoSuchAlgorithmException,
+            InvalidKeyException,
+            IllegalBlockSizeException,
+            BadPaddingException {
         Cipher cipher = Cipher.getInstance(AES_MODE);
         cipher.init(Cipher.ENCRYPT_MODE, key);
 
@@ -53,12 +60,13 @@ public final class CryptoHelper {
         return convertBytesToChars(decrypted);
     }
 
-    public static char[] decrypt(String encryptedData, byte[] masterKey) throws Exception {
-        SecretKey key = new SecretKeySpec(masterKey, "AES");
-        return decrypt(encryptedData, key);
-    }
-
-    public static byte[] decrypt(byte[] combined, SecretKey key) throws Exception {
+    public static byte[] decrypt(byte[] combined, SecretKey key)
+            throws NoSuchPaddingException,
+                NoSuchAlgorithmException,
+                InvalidAlgorithmParameterException,
+                InvalidKeyException,
+                IllegalBlockSizeException,
+                BadPaddingException {
         validateKey(key);
         byte[] iv = new byte[IV_LENGTH];
         byte[] encryptedBytes = new byte[combined.length - IV_LENGTH];
@@ -72,15 +80,15 @@ public final class CryptoHelper {
         return cipher.doFinal(encryptedBytes);
     }
 
+
     private static void validateKey(SecretKey key) {
         if (key == null) {
             throw new IllegalArgumentException("Key cannot be null");
         }
-        if (!"AES".equals(key.getAlgorithm())) {
-            throw new IllegalArgumentException("Key must be AES algorithm");
+        if (!ALGORITHM.equals(key.getAlgorithm())) {
+            throw new IllegalArgumentException("Key must be " + ALGORITHM + " algorithm but got " + key.getAlgorithm());
         }
     }
-
 
     private static char[] convertBytesToChars(byte[] bytes) {
         CharBuffer charBuffer = StandardCharsets.UTF_8.decode(
