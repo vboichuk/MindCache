@@ -9,6 +9,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.myapp.mindcache.security.KeyManager;
 
+import io.reactivex.Completable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
@@ -114,18 +115,11 @@ public class AuthViewModel extends AndroidViewModel {
         disposables.add(disposable);
     }
 
-    public void changePassword(char[] oldPassword, char[] newPassword) {
-        if (newPassword == null || newPassword.length == 0) {
-            Log.e(TAG, "Password cannot be null or empty");
-            errorMessage.postValue("Password cannot be null or empty");
-            return;
+    public Completable changePassword(char[] oldPassword, char[] newPassword) {
+        if (newPassword == null || newPassword.length < 4) {
+            return Completable.error(new IllegalArgumentException("Password cannot be null or empty"));
         }
-
-        Disposable disposable = keyManager.changePassword(oldPassword, newPassword)
-                .observeOn(Schedulers.io())
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .subscribe(() -> Log.i(TAG, "password changed!"));
-        disposables.add(disposable);
+        return keyManager.changePassword(oldPassword, newPassword);
     }
 
     public enum AuthState {

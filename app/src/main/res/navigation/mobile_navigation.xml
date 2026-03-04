@@ -25,13 +25,13 @@
         tools:layout="@layout/fragment_notes_list" >
         <!-- Action для перехода на NoteDetailFragment -->
         <action
-            android:id="@+id/action_diary_to_noteDetail"
-            app:destination="@id/noteDetailFragment" />
+            android:id="@+id/action_list_to_note_detail"
+            app:destination="@id/nav_note_detail" />
     </fragment>
 
     <!-- NoteDetailFragment -->
     <fragment
-        android:id="@+id/noteDetailFragment"
+        android:id="@+id/nav_note_detail"
         android:name="com.myapp.mindcache.ui.notes.NoteDetailFragment"
         android:label="Note Detail"
         tools:layout="@layout/fragment_note_detail" >
@@ -42,10 +42,10 @@
     </fragment>
 
     <fragment
-        android:id="@+id/nav_gallery"
-        android:name="com.myapp.mindcache.ui.gallery.GalleryFragment"
-        android:label="@string/menu_gallery"
-        tools:layout="@layout/fragment_gallery" />
+        android:id="@+id/nav_change_password"
+        android:name="com.myapp.mindcache.ui.auth.ChangePasswordFragment"
+        android:label="@string/menu_change_password"
+        tools:layout="@layout/fragment_change_password" />
 
     <fragment
         android:id="@+id/nav_import_export"

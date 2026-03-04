@@ -129,7 +129,7 @@ public class NoteListFragment extends BaseFragment {
 
     private void onAddClick() {
          NavController navController = Navigation.findNavController(requireView());
-         navController.navigate(R.id.action_diary_to_noteDetail);
+         navController.navigate(R.id.action_list_to_note_detail);
     }
 
     private void onNoteClick(NotePreview notePreview) {
@@ -139,7 +139,7 @@ public class NoteListFragment extends BaseFragment {
         args.putLong(ARG_NOTE_ID, noteId);
 
         NavController navController = Navigation.findNavController(requireView());
-        navController.navigate(R.id.action_diary_to_noteDetail, args);
+        navController.navigate(R.id.action_list_to_note_detail, args);
     }
 
     private void onNoteVisible(long noteId) {

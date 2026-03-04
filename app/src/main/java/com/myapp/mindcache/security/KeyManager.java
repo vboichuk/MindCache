@@ -15,8 +15,6 @@ public interface KeyManager {
 
     Completable login(char[] password);
 
-    void logout();
-
     SecretKey getMasterKey() throws Exception, AuthError;
 
     Completable changePassword(char[] oldPassword, char[] newPassword);

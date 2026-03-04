@@ -11,6 +11,7 @@ import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.exception.CryptoException;
 import com.myapp.mindcache.model.MasterKeyEntity;
 import com.myapp.mindcache.repositories.MasterKeyRepository;
+import com.myapp.mindcache.utils.LoggerBytes;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -19,7 +20,6 @@ import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -55,13 +55,11 @@ public class KeyManagerImpl implements KeyManager {
 
     /**
      * Выполняет аутентификацию пользователя по паролю и получает мастер-ключ.
-     *
      * Процесс аутентификации:
      * 1. Проверяет пароль через {@link #authorize(char[])}
      * 2. Получает зашифрованный мастер-ключ из репозитория (таймаут 5 сек)
      * 3. Расшифровывает мастер-ключ с использованием пароля
      * 4. Сохраняет расшифрованный ключ в кэше (на 5 минут)
-     *
      * Важные особенности:
      * - Пароль затирается из памяти после завершения (успех или ошибка)
      * - При успехе мастер-ключ доступен через {@link #getMasterKey()}
@@ -90,6 +88,7 @@ public class KeyManagerImpl implements KeyManager {
     }
 
     private void authorize(char[] password) {
+        LoggerBytes.log("authorize with", password);
         SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
         byte[] storedHash = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_HASH, ""));
         byte[] authSalt = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_SALT, ""));
@@ -165,7 +164,7 @@ public class KeyManagerImpl implements KeyManager {
     public Completable changePassword(char[] oldPassword, char[] newPassword) {
         // TODO: rollback!
         return Completable.fromAction(() -> validatePassword(newPassword))
-                .andThen(Completable.fromAction(() -> login(oldPassword)))
+                .andThen(login(oldPassword))
                 .doOnComplete(() -> Log.i(TAG, "Changing password started"))
                 .andThen(Single.fromCallable(() -> generateCredentials(newPassword, cachedMasterKey)))
                 .flatMapCompletable(credentials -> saveEncodedKey(credentials.keySalt, credentials.passwordEncryptedKey)
@@ -174,11 +173,6 @@ public class KeyManagerImpl implements KeyManager {
                 .doOnComplete(() -> Log.i(TAG, "Password changed successfully"))
                 .doOnError(error -> Log.e(TAG, "Password changing failed", error))
                 .subscribeOn(Schedulers.io());
-    }
-
-    @Override
-    public void logout() {
-        clearCache();
     }
 
     @Override
@@ -232,6 +226,7 @@ public class KeyManagerImpl implements KeyManager {
     }
 
     private void validatePassword(@NotNull char[] password) {
+        Log.d(TAG, "validatePassword");
         if (password.length < 4)
             throw new IllegalArgumentException("Password length must be at least 4 symbols");
     }

@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
             appBarConfiguration = new AppBarConfiguration.Builder(
                     R.id.nav_notes_list,
-                    R.id.nav_gallery,
+                    R.id.nav_change_password,
                     R.id.nav_import_export)
                     .setOpenableLayout(drawerLayout)
                     .build();
