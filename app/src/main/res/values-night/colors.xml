@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="background">#0E0E0E</color>
 
-    <color name="background">#141313</color>
-<!--    <color name="background">#524863</color>-->
+    <color name="surface_color">#223047</color>
 
     <color name="card_preview">#D5D5D5</color>
     <color name="card_bg">#242424</color>
-    <color name="card_border">#414141</color>
+    <color name="card_border">#383838</color>
 
     <color name="note_detail_content">#D5D5D5</color>
     <color name="note_detail_datetime">#AAAAAA</color>

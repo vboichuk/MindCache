@@ -6,6 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
+    android:background="@color/background"
     tools:context="ui.auth.AuthFragment">
 
     <ImageView
@@ -27,8 +28,8 @@
                 android:layout_height="wrap_content"
                 android:autofillHints="password"
                 android:inputType="textPassword"
-                android:hint="@string/password"
-                android:textSize="26sp" />
+                android:background="@color/card_bg"
+                android:hint="@string/password" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton

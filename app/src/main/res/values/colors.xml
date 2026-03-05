@@ -7,13 +7,16 @@
 
     <color name="light_gray">#CCC7C0</color>
 
-    <color name="teal_700">#36F4A8</color>
+    <color name="teal_200">#FFE082</color>
+    <color name="teal_500">#FFC107</color>
 
     <color name="blue1">#52A6DE</color>
     <color name="black">#FF000000</color>
-    <color name="dark_gray">#121212</color>
+
+    <color name="surface_color">#121212</color>
 
     <color name="white">#FFFFFFFF</color>
+    <color name="password_bg">#E4E4E4</color>
     <color name="background">#FDFDF6</color>
 
     <color name="blueDark">#0A5998</color>
@@ -29,4 +32,7 @@
 
     <color name="note_detail_content">#0D0D0D</color>
     <color name="note_detail_datetime">#4B4B4B</color>
+
+    <color name="yellow">#FFC800</color>
+
 </resources>

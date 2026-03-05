@@ -14,7 +14,7 @@
     <string name="retry">retry</string>
     <string name="note_added_successfully">note added successfully</string>
     <string name="hint_title">Title</string>
-    <string name="hint_content">Note</string>
+    <string name="hint_content">Write something</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="menu_auth">Login</string>
