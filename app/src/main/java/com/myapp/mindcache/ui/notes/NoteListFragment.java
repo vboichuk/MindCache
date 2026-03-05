@@ -89,7 +89,7 @@ public class NoteListFragment extends BaseFragment {
 
     private void observeViewModel() {
 
-        Log.i(TAG, "observeViewModel");
+        Log.d(TAG, "observeViewModel");
 
         viewModel.getErrors().observe(getViewLifecycleOwner(), this::processError); // ?
 
@@ -100,7 +100,7 @@ public class NoteListFragment extends BaseFragment {
     }
 
     private void onFetchMetadata(List<NoteMetadata> metadataList) {
-        Log.i(TAG, "notes metadata was updated with " + metadataList.size() + " items");
+        Log.d(TAG, "notes metadata was updated with " + metadataList.size() + " items");
         noteListAdapter.submitMetadata(metadataList);
 
         List<Long> ids = metadataList.stream()

@@ -18,14 +18,13 @@ import javax.crypto.spec.GCMParameterSpec;
 
 public final class CryptoHelper {
 
-    public static final String ALGORITHM = "AES";
-
-    private CryptoHelper() { }
-
     private static final String TAG = CryptoHelper.class.getSimpleName();
+    public static final String ALGORITHM = "AES";
     private static final String AES_MODE = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;
     private static final int IV_LENGTH = 12;
+
+    private CryptoHelper() { }
 
     public static String encrypt(String text, SecretKey key) throws Exception {
         return toBase64(encrypt(text.getBytes(StandardCharsets.UTF_8), key));
@@ -108,7 +107,7 @@ public final class CryptoHelper {
         return result;
     }
 
-    public static String toBase64(byte[] bytes) throws Exception {
+    public static String toBase64(byte[] bytes) {
         return Base64.encodeToString(bytes, Base64.NO_WRAP);
     }
 }

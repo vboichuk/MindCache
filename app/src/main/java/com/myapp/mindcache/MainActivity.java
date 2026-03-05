@@ -1,5 +1,6 @@
 package com.myapp.mindcache;
 
+import android.app.Application;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -10,6 +11,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBar;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -18,9 +20,12 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.myapp.mindcache.databinding.ActivityMainBinding;
+import com.myapp.mindcache.repositories.NoteRepository;
+import com.myapp.mindcache.security.AndroidKeystoreKeyManager;
 import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.KeyManager;
 import com.myapp.mindcache.security.KeyManagerImpl;
+import com.myapp.mindcache.security.NoteEncryptionService;
 import com.myapp.mindcache.viewmodel.AuthViewModelFactory;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.utils.KeyboardUtils;
@@ -86,21 +91,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setDrawerEnabled(boolean enabled) {
-        if (enabled) {
-            // Показываем гамбургер и разблокируем drawer
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
-        } else {
-            // Скрываем гамбургер и блокируем drawer
-            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
-        }
+        drawerLayout.setDrawerLockMode(enabled ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        ActionBar supportActionBar = getSupportActionBar();
+        if (supportActionBar != null)
+            supportActionBar.setDisplayHomeAsUpEnabled(enabled);
     }
 
     private void initializeFactory() {
-        KeyManager keyManager = new KeyManagerImpl(getApplication(), new KeyGeneratorImpl());
-        notesViewModelFactory = new NotesViewModelFactory(getApplication(), keyManager);
-        authViewModelFactory = new AuthViewModelFactory(getApplication(), keyManager);
+        Application application = getApplication();
+
+        AndroidKeystoreKeyManager keystoreKeyManager;
+        NoteRepository repository;
+
+        try {
+            keystoreKeyManager = new AndroidKeystoreKeyManager();
+            NoteEncryptionService service = new NoteEncryptionService();
+            repository = new NoteRepository(application, service);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        KeyManager keyManager = new KeyManagerImpl(application, new KeyGeneratorImpl(), keystoreKeyManager);
+        notesViewModelFactory = new NotesViewModelFactory(application, keyManager, repository);
+        authViewModelFactory = new AuthViewModelFactory(application, keyManager);
     }
 
     @Override

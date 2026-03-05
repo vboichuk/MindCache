@@ -55,7 +55,7 @@ public class NoteDetailFragment extends BaseFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        Log.i(TAG, "onViewCreated");
+        Log.d(TAG, "onViewCreated");
 
         setupActions();
         initViewModel();

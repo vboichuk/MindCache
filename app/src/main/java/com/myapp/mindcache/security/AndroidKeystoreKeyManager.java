@@ -1,9 +1,9 @@
 package com.myapp.mindcache.security;
 
-import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
+import android.security.keystore.KeyProtection;
+import android.util.Log;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import java.security.KeyStore;
@@ -22,42 +22,28 @@ public class AndroidKeystoreKeyManager {
     }
 
     public SecretKey getSecretKey(String keyAlias) throws Exception {
-        // Log.i(TAG, "getOrCreateKey()");
-
-        if (!keyStore.containsAlias(keyAlias)) {
-            createKey(keyAlias);
-        }
         return (SecretKey) keyStore.getKey(keyAlias, null);
     }
 
-    private void createKey(String keyAlias) throws Exception {
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(
-                KeyProperties.KEY_ALGORITHM_AES,
-                KEY_STORE
-        );
-
-        KeyGenParameterSpec keySpec = new KeyGenParameterSpec.Builder(
-                keyAlias,
-                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
-        )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(120)
-                // .setUserConfirmationRequired(true)
-                // .setIsStrongBoxBacked(true) // Только для устройств с StrongBox
-                .build();
-
-        keyGenerator.init(keySpec);
-        keyGenerator.generateKey();
+    public void removeKey(String keyAlias) throws KeyStoreException {
+        this.keyStore.deleteEntry(keyAlias);
+        Log.i(TAG, "Key with alias " + keyAlias + " has been deleted");
     }
 
-    public void removeKey(String keyAlias) {
-        try {
-            this.keyStore.deleteEntry(keyAlias);
-        } catch (KeyStoreException e) {
-            throw new RuntimeException(e);
-        }
+    public void addSecretKey(String keyAlias, SecretKey secretKey) throws Exception {
+
+        KeyProtection keyProtection = new KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setUserAuthenticationRequired(false)
+                .build();
+
+        if (!keyStore.containsAlias(keyAlias)) {
+            KeyStore.SecretKeyEntry secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
+            keyStore.setEntry(keyAlias, secretKeyEntry, keyProtection);
+
+            Log.i(TAG, "Key successfully imported under alias: " + keyAlias);
+        } else
+            Log.w(TAG, "Key with alias " + keyAlias + " already exists");
     }
 }

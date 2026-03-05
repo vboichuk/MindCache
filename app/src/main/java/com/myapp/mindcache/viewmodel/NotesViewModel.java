@@ -16,12 +16,8 @@ import com.myapp.mindcache.model.NotePreview;
 import com.myapp.mindcache.repositories.NoteRepository;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NoteMetadata;
-import com.myapp.mindcache.security.KeyGenerator;
-import com.myapp.mindcache.security.KeyGeneratorImpl;
 import com.myapp.mindcache.security.KeyManager;
-import com.myapp.mindcache.security.NoteEncryptionService;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,24 +50,18 @@ public class NotesViewModel extends AndroidViewModel {
 
     private final Set<Long> decryptingIds = ConcurrentHashMap.newKeySet();
 
-    public NotesViewModel(@NonNull Application application, @NonNull KeyManager keyManager) {
+    public NotesViewModel(@NonNull Application application,
+                          @NonNull KeyManager keyManager,
+                          @NonNull NoteRepository repository) {
         super(application);
         this.keyManager = keyManager;
-        try {
-            KeyGenerator generator = new KeyGeneratorImpl();
-            NoteEncryptionService service = new NoteEncryptionService();
-            repository = new NoteRepository(application, service);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize NoteRepository", e);
-        }
-
+        this.repository = repository;
         observeRepository();
     }
 
     private void observeRepository() {
         repository.getNotesMetadata().observeForever(metadata -> {
-            // Log.i(TAG, "notesMetadata updated! " + metadata.stream().map(NoteMetadata::getId).collect(Collectors.toList()));
-            Log.i(TAG, "notesMetadata updated with " + metadata.size() + " items");
+            Log.d(TAG, "notesMetadata updated with " + metadata.size() + " items");
             notesMetadata.postValue(metadata);
         });
     }
@@ -89,7 +79,7 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     public void prefetchNotes(List<Long> ids) {
-        Log.i(TAG, "prefetchNotes: " + ids);
+        Log.d(TAG, "prefetchNotes: " + ids);
         for (Long noteId : ids) {
             Disposable disposable = prefetchNote(noteId)
                     .subscribeOn(Schedulers.io())
@@ -120,7 +110,6 @@ public class NotesViewModel extends AndroidViewModel {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSuccess(this::addToCache)
                 .doFinally(() -> unmarkAsLoading(noteId))
-                .doFinally(() -> Arrays.fill(masterKey.getEncoded(), (byte)0))
                 .ignoreElement();
     }
 
@@ -157,6 +146,7 @@ public class NotesViewModel extends AndroidViewModel {
         try {
             masterKey = keyManager.getMasterKey();
         } catch (AuthError | Exception  e) {
+            Log.e(TAG, "error: " + e.getMessage());
             errors.postValue(e);
             return Completable.error(e);
         }
@@ -167,6 +157,10 @@ public class NotesViewModel extends AndroidViewModel {
                             clearDraft(0L);
                             Log.i(TAG, "Successfully added note with id: " + notePreview.getId());
                         })
+                .doOnError(throwable -> {
+                    Log.e(TAG, "throwable: " + throwable.getMessage());
+                    // errors.postValue(throwable);
+                })
                 .ignoreElement()
                 .subscribeOn(Schedulers.io());
     }
@@ -250,7 +244,6 @@ public class NotesViewModel extends AndroidViewModel {
     private void unmarkAsLoading(long noteId) {
         decryptingIds.remove(noteId);
     }
-
 
     @Override
     protected void onCleared() {
