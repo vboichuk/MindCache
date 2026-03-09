@@ -31,4 +31,10 @@
     <string name="current_password">current password</string>
     <string name="new_password">new password</string>
     <string name="password_changed">Password changed successful</string>
+
+    <string name="authentication_failed">Authentication failed (bad fingerprint)</string>
+    <string name="error_not_authenticated">User not authenticated!!!</string>
+    <string name="error_user_canceled">Authentication canceled by user</string>
+    <string name="error_session_expired">Session expired, please authenticate again</string>
+    <string name="error_biometry_failed">Biometric authentication failed</string>
 </resources>

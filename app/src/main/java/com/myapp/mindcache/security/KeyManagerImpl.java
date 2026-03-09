@@ -54,10 +54,19 @@ public class KeyManagerImpl implements KeyManager {
     @Override
     public Completable login(char[] password) {
         char[] passCopy = password.clone();
-        return Completable.fromAction(() -> authorize(passCopy));
+        char[] passCopy2 = password.clone();
+
+        return Completable.fromAction(() -> authorize(passCopy))
+                .andThen(obtainRawMasterKey(passCopy2))
+                .flatMapCompletable(mk -> {
+                    keystoreKeyManager.removeKey(alias);
+                    putToKeystore(mk);
+                    return Completable.complete();
+                });
     }
 
     private void authorize(@NonNull char[] password) {
+        Log.d(TAG, "authorize");
         SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
         byte[] storedHash = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_HASH, ""));
         byte[] authSalt = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_SALT, ""));
@@ -72,6 +81,7 @@ public class KeyManagerImpl implements KeyManager {
 
         if (!Arrays.equals(hash, storedHash))
             throw new SecurityException("Wrong password");
+
     }
 
     @Override
@@ -125,7 +135,7 @@ public class KeyManagerImpl implements KeyManager {
 
     private Single<byte[]> decryptMasterKey(char[] password, MasterKeyEntity mk) throws Exception {
         byte[] keyFromPassword = keyGenerator.generatePBKDF2Key(password, mk.keySalt);
-        SecretKey aes = keyGenerator.generateAESKey(keyFromPassword);
+        SecretKey aes = new SecretKeySpec(keyFromPassword, "AES");
         byte[] masterKey = CryptoHelper.decrypt(mk.encryptedKey, aes);
         return Single.just(masterKey);
     }
@@ -141,7 +151,7 @@ public class KeyManagerImpl implements KeyManager {
         byte[] keySalt = keyGenerator.generateSalt();
 
         byte[] keyFromPassword = keyGenerator.generatePBKDF2Key(password, keySalt);
-        SecretKey aes = keyGenerator.generateAESKey(keyFromPassword);
+        SecretKey aes = new SecretKeySpec(keyFromPassword, "AES");
         byte[] passwordEncryptedKey = CryptoHelper.encrypt(masterKey, aes);
         return new Credentials(authSalt, passwordHash, keySalt, masterKey, passwordEncryptedKey);
     }
@@ -153,7 +163,7 @@ public class KeyManagerImpl implements KeyManager {
     }
 
     private void saveAuthInfo(byte[] authSalt, byte[] passwordHash) {
-        SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+        SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
         prefs.edit()
                 .putString(PREFS_PASSWORD_HASH, Base64.getEncoder().encodeToString(passwordHash))
                 .putString(PREFS_PASSWORD_SALT, Base64.getEncoder().encodeToString(authSalt))
@@ -169,6 +179,7 @@ public class KeyManagerImpl implements KeyManager {
     }
 
     private Completable putToKeystore(byte[] masterKey) {
+        Log.d(TAG, "putToKeystore");
         SecretKey secretKey = new SecretKeySpec(masterKey, "AES");
         java.util.Arrays.fill(masterKey, (byte) 0);
 

@@ -4,6 +4,7 @@ package com.myapp.mindcache.utils;
 import android.app.Activity;
 import android.util.Log;
 
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
@@ -21,6 +22,7 @@ public class BiometricAuthHelper {
         void onError(int errorCode, String error);
     }
 
+    @MainThread
     public void authenticate(Fragment fragment, AuthCallback callback) {
 
         Activity activity = fragment.getActivity();
@@ -67,7 +69,7 @@ public class BiometricAuthHelper {
                     }
 
                     @Override
-                    public void onAuthenticationError(int errorCode, CharSequence errString) {
+                    public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                         super.onAuthenticationError(errorCode, errString);
                         String s = String.valueOf(errString);
                         callback.onError(errorCode, s);

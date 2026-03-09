@@ -1,6 +1,7 @@
 package com.myapp.mindcache.ui.notes;
 
 import android.os.Bundle;
+import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -23,6 +24,8 @@ import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.model.Note;
 
+import org.reactivestreams.Publisher;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -30,8 +33,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 import io.reactivex.Completable;
+import io.reactivex.Flowable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 public class NoteDetailFragment extends BaseFragment {
@@ -45,6 +50,7 @@ public class NoteDetailFragment extends BaseFragment {
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
+
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -101,14 +107,13 @@ public class NoteDetailFragment extends BaseFragment {
     }
 
     public void loadNote() {
-        Disposable disposable;
-        disposable = viewModel.getNoteById(noteId)
+        Disposable disposable = viewModel.getNoteById(noteId)
+                .doOnError(e -> Log.d(TAG, "getNoteById failed with error: " + e.getMessage()))
+                .retryWhen(retryOnAuthError())
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        this::displayNote,
-                        this::showError
-                );
+                .subscribe(this::displayNote, this::processError);
+
         disposables.add(disposable);
     }
 
@@ -144,6 +149,9 @@ public class NoteDetailFragment extends BaseFragment {
                 : viewModel.addNote(new NoteCreateDto(title, content, System.currentTimeMillis()));
 
         Disposable disposable = operation
+                .doOnError(e -> Log.d(TAG, "save note failed with " + e.getClass() + ": " + e.getMessage()))
+                .retryWhen(retryOnAuthError())
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         () -> {
@@ -152,5 +160,19 @@ public class NoteDetailFragment extends BaseFragment {
                         },
                         this::showError);
         disposables.add(disposable);
+    }
+
+    private @NonNull Function<Flowable<Throwable>, Publisher<?>> retryOnAuthError() {
+        return throwableFlowable -> throwableFlowable
+                .ofType(UserNotAuthenticatedException.class)
+                .zipWith(Flowable.range(1, 5), (throwable, attempt) -> attempt)
+                .flatMap(attempt -> showBiometricPrompt()
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        .observeOn(Schedulers.io())
+                        .andThen(Flowable.just(1))  // ← После onComplete эмитим 1
+                        .onErrorResumeNext(error -> {
+                            return Flowable.error(error);
+                        })
+                );
     }
 }

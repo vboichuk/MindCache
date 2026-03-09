@@ -7,10 +7,8 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 
-import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 
 public class KeyGeneratorImpl implements KeyGenerator {
 
@@ -65,10 +63,5 @@ public class KeyGeneratorImpl implements KeyGenerator {
         } catch (InvalidKeySpecException e) {
             throw new CryptoException("Invalid key specification", e);
         }
-    }
-
-    @Override
-    public SecretKey generateAESKey(byte[] keyBytes) {
-        return new SecretKeySpec(keyBytes, "AES");
     }
 }

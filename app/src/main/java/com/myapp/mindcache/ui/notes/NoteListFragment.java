@@ -91,7 +91,7 @@ public class NoteListFragment extends BaseFragment {
 
         Log.d(TAG, "observeViewModel");
 
-        viewModel.getErrors().observe(getViewLifecycleOwner(), this::processError); // ?
+        viewModel.getErrors().observe(getViewLifecycleOwner(), this::processError);
 
         viewModel.getNotesMetadata().observe(getViewLifecycleOwner(), this::onFetchMetadata);
 
@@ -124,7 +124,7 @@ public class NoteListFragment extends BaseFragment {
                 .limit(PREFETCH_LIMIT)
                 .collect(Collectors.toList());
 
-        viewModel.prefetchNotes(missing);
+        viewModel.prefetchPreviews(missing);
     }
 
     private void onAddClick() {
@@ -143,11 +143,11 @@ public class NoteListFragment extends BaseFragment {
     }
 
     private void onNoteVisible(long noteId) {
-        Disposable disposable = viewModel.prefetchNote(noteId)
-                .observeOn(AndroidSchedulers.mainThread())
+        Log.d(TAG, "prefetch single preview id:" + noteId);
+        Disposable disposable = viewModel.prefetchPreview(noteId)
                 .subscribeOn(Schedulers.io())
-                .subscribe(() -> {},
-                        this::processError);
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> {}, this::processError);
 
         disposables.add(disposable);
     }
@@ -202,14 +202,10 @@ public class NoteListFragment extends BaseFragment {
         AlertDialog dialog = builder.create();
 
         dialog.setOnShowListener(dialogInterface -> {
-            // Только если фрагмент еще жив
             if (isAdded()) {
-                // Если нужно изменить цвет - делаем это безопасно
                 Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
                 if (positiveButton != null) {
-                    positiveButton.setTextColor(
-                            ContextCompat.getColor(requireContext(), R.color.delete_red)
-                    );
+                    positiveButton.setTextColor(ContextCompat.getColor(requireContext(), R.color.delete_red));
                 }
             }
         });

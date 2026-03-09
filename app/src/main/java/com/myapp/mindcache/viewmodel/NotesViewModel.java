@@ -78,20 +78,20 @@ public class NotesViewModel extends AndroidViewModel {
         return errors;
     }
 
-    public void prefetchNotes(List<Long> ids) {
-        Log.d(TAG, "prefetchNotes: " + ids);
+    public void prefetchPreviews(List<Long> ids) {
+        Log.d(TAG, "prefetchPreviews: " + ids);
+
         for (Long noteId : ids) {
-            Disposable disposable = prefetchNote(noteId)
+            Disposable disposable = prefetchPreview(noteId)
                     .subscribeOn(Schedulers.io())
                     .subscribe(
-                            () -> Log.d(TAG, "Prefetched: " + noteId),
-                            error -> Log.e(TAG, "Failed to prefetch: " + noteId, error)
-                    );
+                            () -> {},
+                            error -> Log.e(TAG, String.format("Failed to prefetch id: %d (%s)", noteId, error.getMessage())));
             disposables.add(disposable);
         }
     }
 
-    public Completable prefetchNote(long noteId) {
+    public Completable prefetchPreview(long noteId) {
 
         if (isNoteCached(noteId) || isNoteLoading(noteId)) {
             return Completable.complete();
@@ -114,76 +114,80 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     public Single<Note> getNoteById(long noteId) {
+        return Single.defer(() -> {
+            Log.d(TAG, "getNoteById...");
+            Optional<Note> draft = getDraftForNote(noteId);
+            if (draft.isPresent()) {
+                return Single.just(draft.get());
+            }
 
-        Optional<Note> draft = getDraftForNote(noteId);
-        if (draft.isPresent()) {
-            return Single.just(draft.get());
-        }
+            if (noteId == 0L) {
+                return Single.just(Note.createEmpty());
+            }
 
-        if (noteId == 0L) {
-            return Single.just(Note.createEmpty());
-        }
+            SecretKey masterKey;
+            try {
+                masterKey = keyManager.getMasterKey();
+            } catch (AuthError | Exception e) {
+                return Single.error(e);
+            }
 
-        SecretKey masterKey;
-        try {
-            masterKey = keyManager.getMasterKey();
-        } catch (AuthError | Exception e) {
-            errors.postValue(e);
-            return Single.error(e);
-        }
-
-        return repository.getDecryptedNote(noteId, masterKey)
-                .subscribeOn(Schedulers.io());
+            return repository.getDecryptedNote(noteId, masterKey);
+        });
     }
 
     public Completable addNote(NoteCreateDto dto) {
 
-        if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
-            return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
-        }
+        return Completable.defer(() -> {
+            Log.d(TAG, "try to add Note...");
+            if (TextUtils.isEmpty(dto.getTitle()) || TextUtils.isEmpty(dto.getContent())) {
+                return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
+            }
 
-        SecretKey masterKey;
-        try {
-            masterKey = keyManager.getMasterKey();
-        } catch (AuthError | Exception  e) {
-            Log.e(TAG, "error: " + e.getMessage());
-            errors.postValue(e);
-            return Completable.error(e);
-        }
+            SecretKey masterKey;
+            try {
+                masterKey = keyManager.getMasterKey();
+            } catch (AuthError | Exception e) {
+                Log.e(TAG, "error: " + e.getMessage());
+                // errors.postValue(e);
+                return Completable.error(e);
+            }
 
-        return repository.insertNote(dto, masterKey)
-                .doOnSuccess(notePreview -> {
-                            addToCache(notePreview);
-                            clearDraft(0L);
-                            Log.i(TAG, "Successfully added note with id: " + notePreview.getId());
-                        })
-                .doOnError(throwable -> {
-                    Log.e(TAG, "throwable: " + throwable.getMessage());
-                    // errors.postValue(throwable);
-                })
-                .ignoreElement()
-                .subscribeOn(Schedulers.io());
+            return repository.insertNote(dto, masterKey)
+                    .doOnSuccess(notePreview -> {
+                        addToCache(notePreview);
+                        clearDraft(0L);
+                        Log.i(TAG, "Successfully added note with id: " + notePreview.getId());
+                    })
+                    .doOnError(throwable -> Log.e(TAG, "insertNote " + throwable.getClass() + ": " + throwable.getMessage()))
+                    .ignoreElement();
+        });
     }
 
     public Completable updateNote(NoteUpdateDto updateDto) {
-        if (TextUtils.isEmpty(updateDto.getTitle()) || TextUtils.isEmpty(updateDto.getContent())) {
-            return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
-        }
-        SecretKey masterKey;
-        try {
-            masterKey = keyManager.getMasterKey();
-        } catch (AuthError | Exception e) {
-            errors.postValue(e);
-            return Completable.error(e);
-        }
-        return repository.updateNote(updateDto, masterKey)
-                .doOnSuccess(notePreview -> {
-                    addToCache(notePreview);
-                    clearDraft(updateDto.getId());
-                })
-                .ignoreElement()
-                .subscribeOn(Schedulers.io())
-                .doOnError(errors::postValue);
+        return Completable.defer(() -> {
+            if (TextUtils.isEmpty(updateDto.getTitle()) || TextUtils.isEmpty(updateDto.getContent())) {
+                return Completable.error(new IllegalArgumentException("Title and content cannot be empty"));
+            }
+            SecretKey masterKey;
+            try {
+                masterKey = keyManager.getMasterKey();
+            } catch (AuthError | Exception e) {
+                return Completable.error(e);
+            }
+            return repository.updateNote(updateDto, masterKey)
+                    .flatMapCompletable(notePreview -> {
+                        addToCache(notePreview);
+                        clearDraft(updateDto.getId());
+                        return Completable.complete();
+                    })
+//                    .doOnSuccess(notePreview -> {
+//                        addToCache(notePreview);
+//                        clearDraft(updateDto.getId());
+//                    })
+//                    .ignoreElement()
+                    .subscribeOn(Schedulers.io());
+        });
     }
 
     public void saveDraft(long noteId, String title, String content) {
@@ -205,10 +209,7 @@ public class NotesViewModel extends AndroidViewModel {
         return repository.deleteNote(id)
                 .subscribeOn(Schedulers.io())
                 .doOnComplete(() -> removeFromCache(id))
-                .doOnError(error -> {
-                    Log.e(TAG, error.getMessage(), error);
-                    errors.postValue(error);
-                });
+                .doOnError(error -> Log.e(TAG, error.getMessage(), error));
     }
 
     private void addToCache(NotePreview newNote) {
