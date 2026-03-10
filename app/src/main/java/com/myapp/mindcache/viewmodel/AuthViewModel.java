@@ -64,17 +64,11 @@ public class AuthViewModel extends AndroidViewModel {
 
     public void login(char[] password) {
 
-        if (password == null || password.length == 0) {
-            Log.e(TAG, "Password cannot be null or empty");
-            errorMessage.postValue("Password cannot be null or empty");
-            return;
-        }
-
-        isLoading.postValue(true);
-
-        Disposable disposable = keyManager.login(password)
+        Disposable disposable = validatePasswordCompletable(password)
                 .subscribeOn(Schedulers.io())
+                .doOnSubscribe(s -> isLoading.postValue(true))
                 .observeOn(AndroidSchedulers.mainThread())
+                .andThen(keyManager.login(password))
                 .subscribe(
                         () -> {
                             isLoading.postValue(false);
@@ -116,10 +110,19 @@ public class AuthViewModel extends AndroidViewModel {
     }
 
     public Completable changePassword(char[] oldPassword, char[] newPassword) {
-        if (newPassword == null || newPassword.length < 4) {
+
+        return validatePasswordCompletable(newPassword)
+                .andThen(keyManager.changePassword(oldPassword, newPassword));
+    }
+
+    protected Completable validatePasswordCompletable(char[] password) {
+        if (password == null || password.length == 0) {
             return Completable.error(new IllegalArgumentException("Password cannot be null or empty"));
         }
-        return keyManager.changePassword(oldPassword, newPassword);
+        if (password.length < 4) {
+            return Completable.error(new IllegalArgumentException("Password must be at least 4 characters"));
+        }
+        return Completable.complete();
     }
 
     public enum AuthState {

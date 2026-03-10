@@ -54,11 +54,10 @@ public class KeyManagerImpl implements KeyManager {
     @Override
     public Completable login(char[] password) {
         char[] passCopy = password.clone();
-
         return Completable.fromAction(() -> authorize(passCopy));
     }
 
-    private void authorize(@NonNull char[] password) {
+    private void authorize(@NonNull char[] password) throws CryptoException {
         Log.d(TAG, "authorize");
         SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
         byte[] storedHash = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_HASH, ""));
@@ -66,8 +65,6 @@ public class KeyManagerImpl implements KeyManager {
         byte[] hash;
         try {
             hash = keyGenerator.generatePBKDF2Key(password, authSalt);
-        } catch (CryptoException e) {
-            throw new RuntimeException(e.getMessage());
         } finally {
             Arrays.fill(password, '\0');
         }
