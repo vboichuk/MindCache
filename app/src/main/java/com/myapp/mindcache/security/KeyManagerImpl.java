@@ -54,15 +54,8 @@ public class KeyManagerImpl implements KeyManager {
     @Override
     public Completable login(char[] password) {
         char[] passCopy = password.clone();
-        char[] passCopy2 = password.clone();
 
-        return Completable.fromAction(() -> authorize(passCopy))
-                .andThen(obtainRawMasterKey(passCopy2))
-                .flatMapCompletable(mk -> {
-                    keystoreKeyManager.removeKey(alias);
-                    putToKeystore(mk);
-                    return Completable.complete();
-                });
+        return Completable.fromAction(() -> authorize(passCopy));
     }
 
     private void authorize(@NonNull char[] password) {
@@ -81,7 +74,6 @@ public class KeyManagerImpl implements KeyManager {
 
         if (!Arrays.equals(hash, storedHash))
             throw new SecurityException("Wrong password");
-
     }
 
     @Override
