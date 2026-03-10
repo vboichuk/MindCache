@@ -1,4 +1,4 @@
-# MindCache
+# MindCache Android
 
 MindCache - Secure Notes Application
 
