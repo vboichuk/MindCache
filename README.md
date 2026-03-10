@@ -21,6 +21,18 @@ MindCache - Secure Notes Application
 - Async Operations: RxJava
 - UI: Material Design components, View Binding
 
+**Security Architecture**
+
+- User password never stored on device
+- Master key is stored in Android Keystore
+- Individual note encryption with unique IVs
+- Biometric authentication integration
+- Secure key derivation using PBKDF2 with 600,000 iterations
+
+**Requirements**
+- Android 8.0+ (API level 26+)
+- Biometric sensor (optional, for biometric authentication)
+
 
 Notes are encrypted with a 256-bit master key
 
