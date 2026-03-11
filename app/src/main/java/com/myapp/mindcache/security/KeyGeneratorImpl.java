@@ -13,7 +13,7 @@ import javax.crypto.spec.PBEKeySpec;
 public class KeyGeneratorImpl implements KeyGenerator {
 
     private static final String PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256";
-    private static final int ITERATION_COUNT = 600_000;
+    private static final int ITERATION_COUNT = 100_000;
     private static final int KEY_LENGTH = 256; // Длина ключа в битах (AES-256)
     private static final int MASTER_KEY_LENGTH = 32; // 256 bits
     private static final int SALT_LENGTH = 16;
