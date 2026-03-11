@@ -37,4 +37,6 @@
     <string name="error_user_canceled">Authentication canceled by user</string>
     <string name="error_session_expired">Session expired, please authenticate again</string>
     <string name="error_biometry_failed">Biometric authentication failed</string>
+    <string name="export_successful">Export successful</string>
+    <string name="import_successful">Import successful</string>
 </resources>

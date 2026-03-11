@@ -2,6 +2,7 @@ package com.myapp.mindcache.datastorage;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.room.Database;
@@ -32,20 +33,24 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public static void importDatabase(Context context, Uri uri) {
         synchronized (LOCK) {
+            Log.d(TAG, "start import");
             closeDatabase();
             resetInstance();
             initExportManager(context);
             exportManager.importDatabase(uri);
             getInstance(context);
+            Log.d(TAG, "import done");
         }
     }
 
     public static void exportDatabase(Context context) {
         synchronized (LOCK) {
+            Log.d(TAG, "start export");
             closeDatabase();
             initExportManager(context);
             exportManager.exportDatabase();
             getInstance(context);
+            Log.d(TAG, "export done");
         }
     }
 

@@ -97,7 +97,7 @@ public class ExportManagerImpl implements ExportManager {
 
             copyData(inputStream, outputStream);
 
-            Log.i(TAG, "Файл успешно импортирован");
+            Log.i(TAG, "The file was successfully imported");
 
             if (backupFile != null && backupFile.exists()) {
                 //noinspection ResultOfMethodCallIgnored
@@ -107,13 +107,13 @@ public class ExportManagerImpl implements ExportManager {
             AppDatabase.resetInstance();
 
         } catch (SecurityException e) {
-            Log.e(TAG, "Нет разрешения на чтение Uri: " + e.getMessage());
+            Log.e(TAG, "No access to read Uri: " + e.getMessage());
             restoreFromBackup(databaseFile, backupFile);
         } catch (FileNotFoundException e) {
-            Log.e(TAG, "Файл не найден: " + e.getMessage());
+            Log.e(TAG, "File not found: " + e.getMessage());
             restoreFromBackup(databaseFile, backupFile);
         } catch (IOException e) {
-            Log.e(TAG, "Ошибка ввода/вывода: " + e.getMessage());
+            Log.e(TAG, "I/O error: " + e.getMessage());
             restoreFromBackup(databaseFile, backupFile);
         }
     }
