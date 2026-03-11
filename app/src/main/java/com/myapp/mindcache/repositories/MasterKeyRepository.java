@@ -24,7 +24,7 @@ public class MasterKeyRepository {
     }
 
     public Single<MasterKeyEntity> getMasterKeySingle() {
-        return masterKeyDao.getMasterKeyDirect()
+        return masterKeyDao.getMasterKeySingle()
                 .onErrorResumeNext(throwable -> {
                     if (throwable instanceof EmptyResultSetException) {
                         return Single.error(new IllegalStateException("Master key not found"));
@@ -37,15 +37,6 @@ public class MasterKeyRepository {
 
     public Single<Boolean> exists() {
         return masterKeyDao.exists();
-    }
-
-    public Completable deleteMasterKey() {
-        return Completable.fromAction(() -> {
-                    masterKeyDao.deleteAll();
-                    Log.i(TAG, "MasterKey was deleted from from database");
-                })
-                .subscribeOn(Schedulers.io())
-                .doOnError(e -> Log.e(TAG, "Error in MasterKey", e));
     }
 
     public Completable updateMasterKey(MasterKeyEntity masterKey) {

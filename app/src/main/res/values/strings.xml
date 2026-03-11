@@ -39,4 +39,8 @@
     <string name="error_biometry_failed">Biometric authentication failed</string>
     <string name="export_successful">Export successful</string>
     <string name="import_successful">Import successful</string>
+    <string name="enter_current_password">Enter current login password to confirm the operation</string>
+    <string name="import_confirmation">Confirmation</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
 </resources>

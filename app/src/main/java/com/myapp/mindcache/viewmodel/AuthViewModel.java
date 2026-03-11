@@ -9,6 +9,8 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.myapp.mindcache.security.KeyManager;
 
+import java.util.Arrays;
+
 import io.reactivex.Completable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -68,7 +70,8 @@ public class AuthViewModel extends AndroidViewModel {
                 .subscribeOn(Schedulers.io())
                 .doOnSubscribe(s -> isLoading.postValue(true))
                 .observeOn(AndroidSchedulers.mainThread())
-                .andThen(keyManager.login(password))
+                .andThen(keyManager.authorize(password))
+                .doFinally(() -> Arrays.fill(password, '\0'))
                 .subscribe(
                         () -> {
                             isLoading.postValue(false);

@@ -28,7 +28,6 @@
                 android:layout_height="wrap_content"
                 android:autofillHints="password"
                 android:inputType="textPassword"
-                android:text="1111"
                 android:background="@color/card_bg"
                 android:hint="@string/password" />
         </com.google.android.material.textfield.TextInputLayout>

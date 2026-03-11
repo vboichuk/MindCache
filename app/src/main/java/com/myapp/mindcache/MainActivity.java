@@ -27,6 +27,7 @@ import com.myapp.mindcache.security.KeyManager;
 import com.myapp.mindcache.security.KeyManagerImpl;
 import com.myapp.mindcache.security.NoteEncryptionService;
 import com.myapp.mindcache.viewmodel.AuthViewModelFactory;
+import com.myapp.mindcache.viewmodel.ImportExportViewModelFactory;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.utils.KeyboardUtils;
 
@@ -35,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private NotesViewModelFactory notesViewModelFactory;
     private AuthViewModelFactory authViewModelFactory;
+    private ImportExportViewModelFactory importExportViewModelFactory;
+
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private AppBarConfiguration appBarConfiguration;
@@ -55,13 +58,9 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
 
-        initializeFactory();
+        initializeFactories();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-    }
     @Override
     protected void onPostCreate(@Nullable Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
@@ -97,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
             supportActionBar.setDisplayHomeAsUpEnabled(enabled);
     }
 
-    private void initializeFactory() {
+    private void initializeFactories() {
         Application application = getApplication();
 
         AndroidKeystoreKeyManager keystoreKeyManager;
@@ -114,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         KeyManager keyManager = new KeyManagerImpl(application, new KeyGeneratorImpl(), keystoreKeyManager);
         notesViewModelFactory = new NotesViewModelFactory(application, keyManager, repository);
         authViewModelFactory = new AuthViewModelFactory(application, keyManager);
+        importExportViewModelFactory = new ImportExportViewModelFactory(application, keyManager);
     }
 
     @Override
@@ -140,9 +140,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public AuthViewModelFactory getAuthViewModelFactory() {
-        if (notesViewModelFactory == null) {
+        if (authViewModelFactory == null) {
             throw new IllegalStateException("Factories not initialized yet");
         }
         return authViewModelFactory;
+    }
+
+    public ImportExportViewModelFactory getImportExportViewModelFactory() {
+        if (importExportViewModelFactory == null) {
+            throw new IllegalStateException("Factories not initialized yet");
+        }
+        return importExportViewModelFactory;
     }
 }

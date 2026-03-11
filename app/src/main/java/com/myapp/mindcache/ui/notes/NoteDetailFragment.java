@@ -108,8 +108,20 @@ public class NoteDetailFragment extends BaseFragment {
 
     public void loadNote() {
         Disposable disposable = viewModel.getNoteById(noteId)
-                .doOnError(e -> Log.d(TAG, "getNoteById failed with error: " + e.getMessage()))
-                .retryWhen(retryOnAuthError())
+                .retryWhen(errors -> errors.flatMap(e -> {
+                    if (e instanceof UserNotAuthenticatedException) {
+                        return showBiometricPrompt()
+                                .subscribeOn(AndroidSchedulers.mainThread())
+                                .observeOn(Schedulers.io())
+                                .andThen(Flowable.just(1));
+//                    } else if (e instanceof WrongKeyException) {
+//                        return viewModel.invalidateSecretKey()
+//                                .subscribeOn(AndroidSchedulers.mainThread())
+//                                .observeOn(Schedulers.io())
+//                                .andThen(Flowable.just(1));
+                    }
+                    return Flowable.error(e);
+                }))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::displayNote, this::processError);

@@ -1,10 +1,10 @@
 package com.myapp.mindcache.datastorage;
 
-import android.net.Uri;
-
 import androidx.annotation.NonNull;
+
+import java.io.File;
 
 public interface ExportManager {
     void exportDatabase();
-    void importDatabase(@NonNull Uri sourceUri);
+    void importDatabase(@NonNull File sourceUri);
 }

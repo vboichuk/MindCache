@@ -50,6 +50,7 @@ public class NoteRepository {
     public Single<Note> getDecryptedNote(long noteId, SecretKey masterKey) {
         return noteDao.getEncryptedNoteById(noteId)
                 .onErrorResumeNext(throwable -> {
+                    Log.e(TAG, throwable.getMessage(), throwable);
                     if (throwable instanceof EmptyResultSetException) {
                         return Single.error(new NoteNotFoundException(noteId));
                     }

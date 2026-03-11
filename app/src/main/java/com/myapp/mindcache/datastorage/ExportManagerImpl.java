@@ -4,7 +4,6 @@ import static com.myapp.mindcache.datastorage.AppDatabase.DB_NAME;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -18,7 +17,6 @@ import com.myapp.mindcache.R;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +30,7 @@ import kotlin.NotImplementedError;
 public class ExportManagerImpl implements ExportManager {
 
     private static final String TAG = ExportManager.class.getSimpleName();
-    private static final String BACKUP_FILE_NAME = "secure_notes_backup";
+    private static final String BACKUP_FILE_NAME = "MindCache_backup";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 
     private final Context context;
@@ -56,7 +54,13 @@ public class ExportManagerImpl implements ExportManager {
     }
 
     @Override
-    public void importDatabase(@NonNull Uri sourceUri) {
+    public void importDatabase(@NonNull File file) {
+        File dest = context.getDatabasePath(DB_NAME);
+        boolean b = file.renameTo(dest);
+        if (b)
+            Log.i(TAG, "MOVED " + file.getName() + " => " + dest.getName());
+
+        /*
         Log.d(TAG, "importDatabase");
         File databaseFile = context.getDatabasePath(DB_NAME);
 
@@ -116,6 +120,7 @@ public class ExportManagerImpl implements ExportManager {
             Log.e(TAG, "I/O error: " + e.getMessage());
             restoreFromBackup(databaseFile, backupFile);
         }
+         */
     }
 
 
@@ -149,7 +154,29 @@ public class ExportManagerImpl implements ExportManager {
         }
     }
 
-    /** @noinspection unused*/
+    public static void copyToTemporary(@NonNull Context context, @NonNull Uri sourceUri, @NonNull File file) {
+
+        Log.d(TAG, "copyToTemporary " + sourceUri.getPath() + " -> " + file.getAbsolutePath());
+
+        try (
+                InputStream inputStream = context.getContentResolver().openInputStream(sourceUri);
+                FileOutputStream outputStream = new FileOutputStream(file)
+        ) {
+            if (inputStream == null) {
+                Log.e(TAG, "Не удалось открыть InputStream из Uri");
+                return;
+            }
+
+            copyData(inputStream, outputStream);
+
+            Log.i(TAG, "The file was successfully imported to " + file.getAbsolutePath());
+
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+        /** @noinspection unused*/
     private static void exportDirect(Context context, File databaseFile, String filename) {
         throw new NotImplementedError("exportDirect is not implemented");
     }

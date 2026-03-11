@@ -42,7 +42,7 @@ public class AndroidKeystoreKeyManager {
 
     public void removeKey(String keyAlias) throws KeyStoreException {
         this.keyStore.deleteEntry(keyAlias);
-        Log.i(TAG, "Key with alias " + keyAlias + " has been deleted");
+        Log.d(TAG, "Key with alias " + keyAlias + " has been deleted");
     }
 
     public void addSecretKey(String keyAlias, SecretKey secretKey) throws Exception {
@@ -57,7 +57,7 @@ public class AndroidKeystoreKeyManager {
         if (!keyStore.containsAlias(keyAlias)) {
             KeyStore.SecretKeyEntry secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
             keyStore.setEntry(keyAlias, secretKeyEntry, keyProtection);
-            Log.i(TAG, "Key successfully imported under alias: " + keyAlias);
+            Log.d(TAG, "Key successfully imported under alias: " + keyAlias);
         } else
             Log.w(TAG, "Key with alias " + keyAlias + " already exists");
     }

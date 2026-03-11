@@ -13,7 +13,10 @@ import io.reactivex.Single;
 public interface MasterKeyDao {
 
     @Query("SELECT * FROM master_key WHERE id = 1")
-    Single<MasterKeyEntity> getMasterKeyDirect();
+    Single<MasterKeyEntity> getMasterKeySingle();
+
+    @Query("SELECT validation_text FROM master_key WHERE id = 1")
+    Single<String> getValidationText();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(MasterKeyEntity masterKey);

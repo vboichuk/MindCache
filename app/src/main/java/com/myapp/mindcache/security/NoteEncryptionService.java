@@ -44,7 +44,6 @@ public class NoteEncryptionService {
     }
 
     public Note decryptNote(@NonNull EncryptedNote encryptedNote, SecretKey masterKey) throws Exception {
-
         return new Note(
                 encryptedNote.getId(),
                 new String(CryptoHelper.decrypt(encryptedNote.getTitle(), masterKey)),

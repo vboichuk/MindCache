@@ -1,6 +1,9 @@
 package com.myapp.mindcache.security;
 
 import android.util.Base64;
+import android.util.Log;
+
+import com.myapp.mindcache.exception.WrongKeyException;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -9,6 +12,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -65,8 +69,10 @@ public final class CryptoHelper {
                 InvalidAlgorithmParameterException,
                 InvalidKeyException,
                 IllegalBlockSizeException,
-                BadPaddingException {
+                WrongKeyException
+            {
         validateKey(key);
+
         byte[] iv = new byte[IV_LENGTH];
         byte[] encryptedBytes = new byte[combined.length - IV_LENGTH];
 
@@ -75,8 +81,13 @@ public final class CryptoHelper {
 
         Cipher cipher = Cipher.getInstance(AES_MODE);
         cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
-
-        return cipher.doFinal(encryptedBytes);
+        byte[] bytes;
+        try {
+            bytes = cipher.doFinal(encryptedBytes);
+        } catch (BadPaddingException e) {
+            throw new WrongKeyException();
+        }
+        return bytes;
     }
 
 

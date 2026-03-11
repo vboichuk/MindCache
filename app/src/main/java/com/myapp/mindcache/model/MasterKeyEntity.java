@@ -22,6 +22,9 @@ public class MasterKeyEntity {
     @ColumnInfo(name = "algorithm")
     public String algorithm = "PBKDF2WithHmacSHA256";
 
+    @ColumnInfo(name = "validation_text")
+    public String validationText = "";
+
     @ColumnInfo(name = "created_at")
     public long createdAt;
 }

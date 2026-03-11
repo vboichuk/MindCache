@@ -1,5 +1,6 @@
 package com.myapp.mindcache.datastorage;
 
+import android.app.Application;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
@@ -8,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
+import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.myapp.mindcache.dao.MasterKeyDao;
@@ -15,11 +17,15 @@ import com.myapp.mindcache.dao.NoteDao;
 import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.MasterKeyEntity;
 
+import java.io.File;
 import java.util.concurrent.Executors;
+
+import io.reactivex.Single;
+import io.reactivex.schedulers.Schedulers;
 
 @Database(
         entities = { EncryptedNote.class, MasterKeyEntity.class },
-        version = 1)
+        version = 2)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase INSTANCE;
@@ -29,31 +35,6 @@ public abstract class AppDatabase extends RoomDatabase {
     private static final Object LOCK = new Object();
 
     static final String DB_NAME = "secure_notes_db";
-
-
-    public static void importDatabase(Context context, Uri uri) {
-        synchronized (LOCK) {
-            Log.d(TAG, "start import");
-            closeDatabase();
-            resetInstance();
-            initExportManager(context);
-            exportManager.importDatabase(uri);
-            getInstance(context);
-            Log.d(TAG, "import done");
-        }
-    }
-
-    public static void exportDatabase(Context context) {
-        synchronized (LOCK) {
-            Log.d(TAG, "start export");
-            closeDatabase();
-            initExportManager(context);
-            exportManager.exportDatabase();
-            getInstance(context);
-            Log.d(TAG, "export done");
-        }
-    }
-
 
     public abstract NoteDao noteDao();
 
@@ -77,19 +58,16 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     }
 
+
     private static AppDatabase buildDatabase(Context appContext) {
+        Log.i(TAG, "buildDatabase");
         return Room.databaseBuilder(appContext, AppDatabase.class, DB_NAME)
                 .addCallback(new RoomDatabase.Callback() {
                     @Override
-                    public void onCreate(@NonNull SupportSQLiteDatabase db) {
-                        super.onCreate(db);
-                        // Действия при первом создании БД
-                    }
+                    public void onCreate(@NonNull SupportSQLiteDatabase db) { super.onCreate(db); }
                 })
-                // .addMigrations(MIGRATION_1_2)
-                // .addMigrations(MIGRATION_2_3)
-                // .addMigrations(MIGRATION_3_4)
-                .setJournalMode(JournalMode.TRUNCATE) // Оптимизация для записи
+                .addMigrations(MIGRATION_1_2)
+                .setJournalMode(JournalMode.TRUNCATE)
                 // .fallbackToDestructiveMigration() // Только для разработки!
                 .setQueryCallback((sqlQuery, bindArgs) ->
                                 // Log.d("ROOM_QUERY", "SQL: " + sqlQuery),
@@ -106,9 +84,60 @@ public abstract class AppDatabase extends RoomDatabase {
         */
     }
 
+    private static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            Log.d(TAG, "MIGRATION " + startVersion + " -> " + endVersion);
+            database.execSQL("ALTER TABLE master_key ADD COLUMN validation_text TEXT DEFAULT '';");
+        }
+    };
+
+    public static void createTemporaryFile(Application application, Uri uri, File file) {
+        ExportManagerImpl.copyToTemporary(application, uri, file);
+    }
+
+    public static AppDatabase openTemporary(Context context, File dbFile) {
+        Log.d(TAG, "openTemporary: " + dbFile.getAbsolutePath());
+        return Room.databaseBuilder(context, AppDatabase.class, dbFile.getAbsolutePath())
+                .addMigrations(MIGRATION_1_2)
+                .setJournalMode(JournalMode.TRUNCATE)
+                .build();
+    }
+
+    public static Single<MasterKeyEntity> readMasterKeyFromFile(Context context, File dbFile) {
+        return Single.using(
+                () -> openTemporary(context, dbFile),                    // Resource factory
+                tempDb -> tempDb.masterKeyDao().getMasterKeySingle(),    // Observable factory
+                tempDb -> {                                               // Disposer
+                    if (tempDb != null && tempDb.isOpen()) {
+                        tempDb.close();
+                        Log.d(TAG, "Temporary database closed");
+                    }
+                }
+        ).subscribeOn(Schedulers.io());
+    }
+
+    public static void exportDatabase(Context context) {
+        synchronized (LOCK) {
+            Log.d(TAG, "start export");
+            closeDatabase();
+            initExportManager(context);
+            exportManager.exportDatabase();
+            getInstance(context);
+            Log.d(TAG, "export done");
+        }
+    }
+
+    public static void importDatabase(Application context, File file) {
+        synchronized (LOCK) {
+            resetInstance();
+            initExportManager(context);
+            exportManager.importDatabase(file);
+            getInstance(context);
+        }
+    }
 
     static void resetInstance() {
-        // Сбрасываем INSTANCE
         synchronized (AppDatabase.class) {
             if (INSTANCE != null) {
                 INSTANCE.close();

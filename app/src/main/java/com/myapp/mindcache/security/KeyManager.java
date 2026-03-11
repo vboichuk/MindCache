@@ -1,6 +1,7 @@
 package com.myapp.mindcache.security;
 
 import com.myapp.mindcache.exception.AuthError;
+import com.myapp.mindcache.model.MasterKeyEntity;
 
 import javax.crypto.SecretKey;
 
@@ -13,9 +14,13 @@ public interface KeyManager {
 
     Completable registerUser(char[] password);
 
-    Completable login(char[] password);
+    Completable authorize(char[] password);
 
     SecretKey getMasterKey() throws Exception, AuthError;
 
     Completable changePassword(char[] oldPassword, char[] newPassword);
+
+    Completable updatePassword(char[] password);
+
+    Completable checkAccessToDatabase(char[] password, MasterKeyEntity masterKey);
 }

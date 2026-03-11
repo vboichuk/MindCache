@@ -15,6 +15,7 @@ import androidx.navigation.Navigation;
 import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.exception.AuthError;
+import com.myapp.mindcache.exception.WrongKeyException;
 import com.myapp.mindcache.utils.BiometricAuthHelper;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 
@@ -32,12 +33,15 @@ public abstract class BaseFragment extends Fragment {
             return;
 
         Log.e(tag(), "processError: " + error.getClass() + " " + error.getMessage());
+        Log.e(tag(), "processError: ", error);
         showError(error);
 
         if (error instanceof AuthError) {
             // navigateToLogin();
         } else if (error instanceof UserNotAuthenticatedException) {
             // showBiometricPrompt();
+        } else if (error instanceof WrongKeyException) {
+            Log.i(getTag(), "Need to enter valid password for database!");
         }
     }
 

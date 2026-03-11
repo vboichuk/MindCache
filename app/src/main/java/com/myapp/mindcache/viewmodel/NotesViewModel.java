@@ -61,7 +61,7 @@ public class NotesViewModel extends AndroidViewModel {
 
     private void observeRepository() {
         repository.getNotesMetadata().observeForever(metadata -> {
-            Log.d(TAG, "notesMetadata updated with " + metadata.size() + " items");
+            Log.i(TAG, "notesMetadata updated with " + metadata.size() + " items");
             notesMetadata.postValue(metadata);
         });
     }
@@ -180,13 +180,7 @@ public class NotesViewModel extends AndroidViewModel {
                         addToCache(notePreview);
                         clearDraft(updateDto.getId());
                         return Completable.complete();
-                    })
-//                    .doOnSuccess(notePreview -> {
-//                        addToCache(notePreview);
-//                        clearDraft(updateDto.getId());
-//                    })
-//                    .ignoreElement()
-                    .subscribeOn(Schedulers.io());
+                    });
         });
     }
 
