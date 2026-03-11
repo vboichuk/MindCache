@@ -35,9 +35,14 @@ public class ExportManagerImpl implements ExportManager {
     private static final String BACKUP_FILE_NAME = "secure_notes_backup";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 
+    private final Context context;
+
+    ExportManagerImpl(Context context) {
+        this.context = context;
+    }
 
     @Override
-    public void exportDatabase(Context context) {
+    public void exportDatabase() {
         File databaseFile = context.getDatabasePath(DB_NAME);
         String filename = obtainFilenameForExport();
 
@@ -51,7 +56,7 @@ public class ExportManagerImpl implements ExportManager {
     }
 
     @Override
-    public void importDatabase(@NonNull Context context, @NonNull Uri sourceUri) {
+    public void importDatabase(@NonNull Uri sourceUri) {
         Log.d(TAG, "importDatabase");
         File databaseFile = context.getDatabasePath(DB_NAME);
 

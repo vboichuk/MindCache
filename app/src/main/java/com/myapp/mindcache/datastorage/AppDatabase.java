@@ -22,18 +22,31 @@ import java.util.concurrent.Executors;
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase INSTANCE;
-    private static final String TAG = AppDatabase.class.getSimpleName();
-    static final String DB_NAME = "secure_notes_db";
+    private static ExportManager exportManager;
 
-    private static final ExportManager exportManager = new ExportManagerImpl();
+    private static final String TAG = AppDatabase.class.getSimpleName();
+    private static final Object LOCK = new Object();
+
+    static final String DB_NAME = "secure_notes_db";
 
 
     public static void importDatabase(Context context, Uri uri) {
-        exportManager.importDatabase(context, uri);
+        synchronized (LOCK) {
+            closeDatabase();
+            resetInstance();
+            initExportManager(context);
+            exportManager.importDatabase(uri);
+            getInstance(context);
+        }
     }
 
     public static void exportDatabase(Context context) {
-        exportManager.exportDatabase(context);
+        synchronized (LOCK) {
+            closeDatabase();
+            initExportManager(context);
+            exportManager.exportDatabase();
+            getInstance(context);
+        }
     }
 
 
@@ -46,10 +59,17 @@ public abstract class AppDatabase extends RoomDatabase {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
                     INSTANCE = buildDatabase(context);
+                    initExportManager(context.getApplicationContext());
                 }
             }
         }
         return INSTANCE;
+    }
+
+    private static void initExportManager(Context context) {
+        if (exportManager == null) {
+            exportManager = new ExportManagerImpl(context);
+        }
     }
 
     private static AppDatabase buildDatabase(Context appContext) {
