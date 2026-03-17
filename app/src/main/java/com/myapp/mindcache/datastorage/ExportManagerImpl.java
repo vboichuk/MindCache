@@ -59,68 +59,6 @@ public class ExportManagerImpl implements ExportManager {
         boolean b = file.renameTo(dest);
         if (b)
             Log.i(TAG, "MOVED " + file.getName() + " => " + dest.getName());
-
-        /*
-        Log.d(TAG, "importDatabase");
-        File databaseFile = context.getDatabasePath(DB_NAME);
-
-        // Валидация входных параметров
-        if (databaseFile == null) {
-            Log.e(TAG, "Неверные параметры");
-            return;
-        }
-
-        // Проверяем, можно ли читать из Uri
-        try {
-            context.getContentResolver().takePersistableUriPermission(sourceUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } catch (SecurityException e) {
-            // Игнорируем - permission может уже быть или не требоваться
-        }
-
-        AppDatabase.closeDatabase();
-
-        // Создаём резервную копию текущего файла на случай ошибки
-        File backupFile = null;
-        if (databaseFile.exists()) {
-            backupFile = new File(databaseFile.getParent(), databaseFile.getName() + ".backup");
-            if (!databaseFile.renameTo(backupFile)) {
-                Log.w(TAG, "Не удалось создать резервную копию");
-                backupFile = null;
-            }
-        }
-
-        try (
-                InputStream inputStream = context.getContentResolver().openInputStream(sourceUri);
-                FileOutputStream outputStream = new FileOutputStream(databaseFile)
-        ) {
-            if (inputStream == null) {
-                Log.e(TAG, "Не удалось открыть InputStream из Uri");
-                restoreFromBackup(databaseFile, backupFile);
-                return;
-            }
-
-            copyData(inputStream, outputStream);
-
-            Log.i(TAG, "The file was successfully imported");
-
-            if (backupFile != null && backupFile.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                backupFile.delete();
-            }
-
-            AppDatabase.resetInstance();
-
-        } catch (SecurityException e) {
-            Log.e(TAG, "No access to read Uri: " + e.getMessage());
-            restoreFromBackup(databaseFile, backupFile);
-        } catch (FileNotFoundException e) {
-            Log.e(TAG, "File not found: " + e.getMessage());
-            restoreFromBackup(databaseFile, backupFile);
-        } catch (IOException e) {
-            Log.e(TAG, "I/O error: " + e.getMessage());
-            restoreFromBackup(databaseFile, backupFile);
-        }
-         */
     }
 
 
@@ -176,22 +114,9 @@ public class ExportManagerImpl implements ExportManager {
         }
     }
 
-        /** @noinspection unused*/
+    /** @noinspection unused*/
     private static void exportDirect(Context context, File databaseFile, String filename) {
         throw new NotImplementedError("exportDirect is not implemented");
-    }
-
-
-    private static void restoreFromBackup(File databaseFile, File backupFile) {
-        if (backupFile != null && backupFile.exists()) {
-            if (databaseFile.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                databaseFile.delete();
-            }
-            //noinspection ResultOfMethodCallIgnored
-            backupFile.renameTo(databaseFile);
-            Log.i(TAG, "Восстановлена резервная копия");
-        }
     }
 
     private static void copyData(InputStream inputStream,

@@ -18,7 +18,6 @@ import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.MasterKeyEntity;
 
 import java.io.File;
-import java.util.concurrent.Executors;
 
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
@@ -44,7 +43,7 @@ public abstract class AppDatabase extends RoomDatabase {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = buildDatabase(context);
+                    INSTANCE = buildDatabase(context, DB_NAME);
                     initExportManager(context.getApplicationContext());
                 }
             }
@@ -59,20 +58,12 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
 
-    private static AppDatabase buildDatabase(Context appContext) {
+    private static AppDatabase buildDatabase(Context appContext, String dbName) {
         Log.i(TAG, "buildDatabase");
-        return Room.databaseBuilder(appContext, AppDatabase.class, DB_NAME)
-                .addCallback(new RoomDatabase.Callback() {
-                    @Override
-                    public void onCreate(@NonNull SupportSQLiteDatabase db) { super.onCreate(db); }
-                })
+        return Room.databaseBuilder(appContext, AppDatabase.class, dbName)
                 .addMigrations(MIGRATION_1_2)
                 .setJournalMode(JournalMode.TRUNCATE)
                 // .fallbackToDestructiveMigration() // Только для разработки!
-                .setQueryCallback((sqlQuery, bindArgs) ->
-                                // Log.d("ROOM_QUERY", "SQL: " + sqlQuery),
-                                {},
-                                Executors.newSingleThreadExecutor())
                 .build();
 
         /*
@@ -96,18 +87,10 @@ public abstract class AppDatabase extends RoomDatabase {
         ExportManagerImpl.copyToTemporary(application, uri, file);
     }
 
-    public static AppDatabase openTemporary(Context context, File dbFile) {
-        Log.d(TAG, "openTemporary: " + dbFile.getAbsolutePath());
-        return Room.databaseBuilder(context, AppDatabase.class, dbFile.getAbsolutePath())
-                .addMigrations(MIGRATION_1_2)
-                .setJournalMode(JournalMode.TRUNCATE)
-                .build();
-    }
-
     public static Single<MasterKeyEntity> readMasterKeyFromFile(Context context, File dbFile) {
         return Single.using(
-                () -> openTemporary(context, dbFile),                    // Resource factory
-                tempDb -> tempDb.masterKeyDao().getMasterKeySingle(),    // Observable factory
+                () -> buildDatabase(context, dbFile.getAbsolutePath()),     // Resource factory
+                tempDb -> tempDb.masterKeyDao().getMasterKeySingle(),       // Observable factory
                 tempDb -> {                                               // Disposer
                     if (tempDb != null && tempDb.isOpen()) {
                         tempDb.close();
