@@ -21,11 +21,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
-
-import kotlin.NotImplementedError;
 
 public class ExportManagerImpl implements ExportManager {
 
@@ -54,13 +53,35 @@ public class ExportManagerImpl implements ExportManager {
     }
 
     @Override
-    public void importDatabase(@NonNull File file) {
+    public void replaceDatabase(@NonNull File source) {
         File dest = context.getDatabasePath(DB_NAME);
-        boolean b = file.renameTo(dest);
-        if (b)
-            Log.i(TAG, "MOVED " + file.getName() + " => " + dest.getName());
+        if (source.renameTo(dest))
+            Log.i(TAG, "MOVED " + source.getName() + " => " + dest.getName());
+        else {
+            try {
+                copyFile(source, dest);
+                tryToRemoveFile(source);
+                Log.i(TAG, "File imported successfully: " + source.getPath());
+            } catch (IOException e) {
+                Log.e(TAG, "Import failed: " + e.getMessage(), e);
+            }
+        }
     }
 
+    public static void copyToTemporary(@NonNull Context context, @NonNull Uri sourceUri, @NonNull File file) throws IOException {
+        Log.d(TAG, "copyToTemporary " + sourceUri.getPath() + " -> " + file.getAbsolutePath());
+        try (
+                InputStream inputStream = context.getContentResolver().openInputStream(sourceUri);
+                FileOutputStream outputStream = new FileOutputStream(file)
+        ) {
+            if (inputStream == null) {
+                Log.e(TAG, "Не удалось открыть InputStream из Uri");
+                return;
+            }
+            copyData(inputStream, outputStream);
+            Log.i(TAG, "The file was successfully imported to " + file.getAbsolutePath());
+        }
+    }
 
     private static @NonNull String obtainFilenameForExport() {
         LocalDateTime dateTime = LocalDateTime.now();
@@ -76,47 +97,53 @@ public class ExportManagerImpl implements ExportManager {
                 + "/" + context.getString(R.string.app_name));
 
         Uri collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-        Uri fileUri = context.getContentResolver().insert(collection, values);
+        Uri destUri = context.getContentResolver().insert(collection, values);
 
-        if (fileUri != null) {
-            try (
-                    FileInputStream fileInputStream = new FileInputStream(databaseFile);
-                    OutputStream outputStream = context.getContentResolver().openOutputStream(fileUri)
-            ) {
-                copyData(fileInputStream, outputStream);
-                Log.i(TAG, "File exported successfully: " + filename);
-            } catch (IOException e) {
-                Log.e(TAG, "Export failed: " + e.getMessage(), e);
-                tryToRemoveFile(context, fileUri);
-            }
+        if (destUri == null) {
+            return;
         }
-    }
-
-    public static void copyToTemporary(@NonNull Context context, @NonNull Uri sourceUri, @NonNull File file) {
-
-        Log.d(TAG, "copyToTemporary " + sourceUri.getPath() + " -> " + file.getAbsolutePath());
 
         try (
-                InputStream inputStream = context.getContentResolver().openInputStream(sourceUri);
-                FileOutputStream outputStream = new FileOutputStream(file)
+                FileInputStream fileInputStream = new FileInputStream(databaseFile);
+                OutputStream outputStream = context.getContentResolver().openOutputStream(destUri)
         ) {
-            if (inputStream == null) {
-                Log.e(TAG, "Не удалось открыть InputStream из Uri");
-                return;
-            }
-
-            copyData(inputStream, outputStream);
-
-            Log.i(TAG, "The file was successfully imported to " + file.getAbsolutePath());
-
+            copyData(fileInputStream, outputStream);
+            Log.i(TAG, "File exported successfully: " + filename);
         } catch (IOException e) {
-            throw new RuntimeException(e.getMessage());
+            Log.e(TAG, "Export failed: " + e.getMessage(), e);
+            tryToRemoveFile(context, destUri);
         }
     }
 
-    /** @noinspection unused*/
     private static void exportDirect(Context context, File databaseFile, String filename) {
-        throw new NotImplementedError("exportDirect is not implemented");
+        File exportDir = new File(Environment.getExternalStorageDirectory(),
+                context.getString(R.string.app_name));
+
+        if (!exportDir.exists() && !exportDir.mkdirs()) {
+            Log.e(TAG, "Failed to create export directory");
+            return;
+        }
+
+        File exportFile = new File(exportDir, filename);
+        try {
+            copyFile(databaseFile, exportFile);
+            Log.i(TAG, "Exported to: " + exportFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e(TAG, "Export failed", e);
+        }
+    }
+
+    private static void copyFile(File source, File dest) throws IOException {
+        try (
+                FileInputStream fileInputStream = new FileInputStream(source);
+                OutputStream outputStream = Files.newOutputStream(dest.toPath())
+        ) {
+            copyData(fileInputStream, outputStream);
+        } catch (IOException e) {
+            Log.e(TAG, "Copying failed: " + e.getMessage(), e);
+            tryToRemoveFile(dest);
+            throw e;
+        }
     }
 
     private static void copyData(InputStream inputStream,
@@ -137,6 +164,14 @@ public class ExportManagerImpl implements ExportManager {
             context.getContentResolver().delete(fileUri, null, null);
         } catch (Exception e) {
             Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    private static void tryToRemoveFile(File dest) {
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            dest.delete();
+        } catch (SecurityException ignored) {
         }
     }
 }

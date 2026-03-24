@@ -29,26 +29,25 @@ import io.reactivex.schedulers.Schedulers;
 
 public class NoteRepository {
     private static final String TAG = NoteRepository.class.getSimpleName();
-    private final NoteDao noteDao;
     private final NoteEncryptionService encryptionService;
+    private final Context context;
 
     public NoteRepository(Context context, NoteEncryptionService encryptionService) {
-        AppDatabase db = AppDatabase.getInstance(context);
-        this.noteDao = db.noteDao();
+        this.context = context;
         this.encryptionService = encryptionService;
     }
 
     public LiveData<List<NoteMetadata>> getNotesMetadata() {
-        return noteDao.getNotesMetadata();
+        return noteDao().getNotesMetadata();
     }
 
     public Single<NotePreview> getDecryptedPreview(long noteId, SecretKey masterKey) {
-        return noteDao.getEncryptedPreviewById(noteId)
+        return noteDao().getEncryptedPreviewById(noteId)
                 .map(encryptedNote -> encryptionService.decryptPreview(encryptedNote, masterKey));
     }
 
     public Single<Note> getDecryptedNote(long noteId, SecretKey masterKey) {
-        return noteDao.getEncryptedNoteById(noteId)
+        return noteDao().getEncryptedNoteById(noteId)
                 .onErrorResumeNext(throwable -> {
                     Log.e(TAG, throwable.getMessage(), throwable);
                     if (throwable instanceof EmptyResultSetException) {
@@ -67,7 +66,7 @@ public class NoteRepository {
         return Single.fromCallable(() -> {
                     Note note = NoteMapper.fromDto(dto);
                     EncryptedNote encryptedNote = encryptionService.encryptNote(note, masterKey);
-                    long id = noteDao.insert(encryptedNote);
+                    long id = noteDao().insert(encryptedNote);
                     note.setId(id);
                     return NoteMapper.toPreview(note);
                 })
@@ -76,7 +75,7 @@ public class NoteRepository {
 
     public Completable deleteNote(long id) {
         return Completable.fromAction(() -> {
-                    int deletedCount = noteDao.delete(id);
+                    int deletedCount = noteDao().delete(id);
                     if (deletedCount == 0) {
                         throw new NoteNotFoundException(id);
                     }
@@ -91,7 +90,7 @@ public class NoteRepository {
         }
 
         return Single.fromCallable(() -> {
-                    EncryptedNote existing = noteDao.getById(dto.getId());
+                    EncryptedNote existing = noteDao().getById(dto.getId());
                     if (existing == null) {
                         throw new NoteNotFoundException(dto.getId());
                     }
@@ -100,7 +99,7 @@ public class NoteRepository {
                     existing.setContent(encryptionService.encrypt(dto.getContent(), masterKey));
                     existing.setPreview(encryptionService.encrypt(preview, masterKey));
                     existing.setCreatedAt(dto.getCreatedAt());
-                    noteDao.update(existing);
+                    noteDao().update(existing);
                     Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
                     return new NotePreview(
                             existing.getId(),
@@ -110,5 +109,9 @@ public class NoteRepository {
                     );
                 })
                 .subscribeOn(Schedulers.io());
+    }
+
+    protected NoteDao noteDao() {
+        return AppDatabase.getInstance(context).noteDao();
     }
 }

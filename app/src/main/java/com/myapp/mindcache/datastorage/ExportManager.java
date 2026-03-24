@@ -6,5 +6,5 @@ import java.io.File;
 
 public interface ExportManager {
     void exportDatabase();
-    void importDatabase(@NonNull File sourceUri);
+    void replaceDatabase(@NonNull File sourceUri);
 }

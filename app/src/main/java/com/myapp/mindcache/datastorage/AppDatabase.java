@@ -18,6 +18,7 @@ import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.MasterKeyEntity;
 
 import java.io.File;
+import java.io.IOException;
 
 import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
@@ -43,6 +44,7 @@ public abstract class AppDatabase extends RoomDatabase {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
+                    Log.i(TAG, "create db instance");
                     INSTANCE = buildDatabase(context, DB_NAME);
                     initExportManager(context.getApplicationContext());
                 }
@@ -51,12 +53,56 @@ public abstract class AppDatabase extends RoomDatabase {
         return INSTANCE;
     }
 
+    public static void createTemporaryFile(Application application, Uri uri, File file) throws IOException {
+        ExportManagerImpl.copyToTemporary(application, uri, file);
+    }
+
+    public static Single<MasterKeyEntity> readMasterKeyFromFile(Context context, File dbFile) {
+        return Single.using(
+                () -> buildDatabase(context, dbFile.getAbsolutePath()),     // Resource factory
+                tempDb -> tempDb.masterKeyDao().getMasterKeySingle(),       // Observable factory
+                tempDb -> {                                               // Disposer
+                    if (tempDb != null && tempDb.isOpen()) {
+                        tempDb.close();
+                        Log.d(TAG, "Temporary database closed");
+                    }
+                }
+        ).subscribeOn(Schedulers.io());
+    }
+
+    public static void exportDatabase(Context context) {
+        synchronized (LOCK) {
+            Log.d(TAG, "start export");
+            initExportManager(context);
+            exportManager.exportDatabase();
+            Log.d(TAG, "export done");
+        }
+    }
+
+    public static void importDatabase(Application context, File file) {
+        synchronized (LOCK) {
+            resetInstance();
+            initExportManager(context);
+            exportManager.replaceDatabase(file);
+            getInstance(context);
+        }
+    }
+
+    private static void resetInstance() {
+        synchronized (AppDatabase.class) {
+            if (INSTANCE != null) {
+                Log.i(TAG, "reset db instance");
+                INSTANCE.close();
+                INSTANCE = null;
+            }
+        }
+    }
+
     private static void initExportManager(Context context) {
         if (exportManager == null) {
             exportManager = new ExportManagerImpl(context);
         }
     }
-
 
     private static AppDatabase buildDatabase(Context appContext, String dbName) {
         Log.i(TAG, "buildDatabase");
@@ -83,55 +129,4 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
-    public static void createTemporaryFile(Application application, Uri uri, File file) {
-        ExportManagerImpl.copyToTemporary(application, uri, file);
-    }
-
-    public static Single<MasterKeyEntity> readMasterKeyFromFile(Context context, File dbFile) {
-        return Single.using(
-                () -> buildDatabase(context, dbFile.getAbsolutePath()),     // Resource factory
-                tempDb -> tempDb.masterKeyDao().getMasterKeySingle(),       // Observable factory
-                tempDb -> {                                               // Disposer
-                    if (tempDb != null && tempDb.isOpen()) {
-                        tempDb.close();
-                        Log.d(TAG, "Temporary database closed");
-                    }
-                }
-        ).subscribeOn(Schedulers.io());
-    }
-
-    public static void exportDatabase(Context context) {
-        synchronized (LOCK) {
-            Log.d(TAG, "start export");
-            closeDatabase();
-            initExportManager(context);
-            exportManager.exportDatabase();
-            getInstance(context);
-            Log.d(TAG, "export done");
-        }
-    }
-
-    public static void importDatabase(Application context, File file) {
-        synchronized (LOCK) {
-            resetInstance();
-            initExportManager(context);
-            exportManager.importDatabase(file);
-            getInstance(context);
-        }
-    }
-
-    static void resetInstance() {
-        synchronized (AppDatabase.class) {
-            if (INSTANCE != null) {
-                INSTANCE.close();
-                INSTANCE = null;
-            }
-        }
-    }
-
-    static void closeDatabase() {
-        if (INSTANCE != null && INSTANCE.isOpen()) {
-            INSTANCE.close();
-        }
-    }
 }
