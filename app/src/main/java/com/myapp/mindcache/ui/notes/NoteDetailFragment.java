@@ -1,5 +1,6 @@
 package com.myapp.mindcache.ui.notes;
 
+import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
@@ -29,7 +30,9 @@ import org.reactivestreams.Publisher;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 import java.util.Locale;
 
 import io.reactivex.Completable;
@@ -49,7 +52,7 @@ public class NoteDetailFragment extends BaseFragment {
     private FragmentNoteDetailBinding binding;
 
     private final DateTimeFormatter dateTimeFormatter =
-            DateTimeFormatter.ofPattern("dd MMMM, HH:mm", Locale.getDefault());
+            DateTimeFormatter.ofPattern("dd MMMM, yyyy", Locale.getDefault());
 
 
     @Override
@@ -92,6 +95,20 @@ public class NoteDetailFragment extends BaseFragment {
                 return false;
             }
         }, getViewLifecycleOwner());
+
+        binding.noteDate.setOnClickListener(v -> {
+            Calendar c = Calendar.getInstance();
+            c.setTimeInMillis(datetime);
+            DatePickerDialog.OnDateSetListener listener = (date_picker, year, month, day_of_month) -> {
+                LocalDateTime dateTime = LocalDateTime.of(year, 1 + month, day_of_month, 12, 0);
+                ZonedDateTime zonedDateTime = dateTime.atZone(ZoneId.systemDefault());
+                datetime = zonedDateTime.toInstant().toEpochMilli();
+                updateDateTimeText();
+            };
+            new DatePickerDialog(requireContext(), listener,
+                    c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
+                    .show();
+        });
     }
 
     private void initViewModel() {
@@ -108,8 +125,20 @@ public class NoteDetailFragment extends BaseFragment {
 
     public void loadNote() {
         Disposable disposable = viewModel.getNoteById(noteId)
-                .doOnError(e -> Log.d(TAG, "getNoteById failed with error: " + e.getMessage()))
-                .retryWhen(retryOnAuthError())
+                .retryWhen(errors -> errors.flatMap(e -> {
+                    if (e instanceof UserNotAuthenticatedException) {
+                        return showBiometricPrompt()
+                                .subscribeOn(AndroidSchedulers.mainThread())
+                                .observeOn(Schedulers.io())
+                                .andThen(Flowable.just(1));
+//                    } else if (e instanceof WrongKeyException) {
+//                        return viewModel.invalidateSecretKey()
+//                                .subscribeOn(AndroidSchedulers.mainThread())
+//                                .observeOn(Schedulers.io())
+//                                .andThen(Flowable.just(1));
+                    }
+                    return Flowable.error(e);
+                }))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::displayNote, this::processError);
@@ -128,15 +157,16 @@ public class NoteDetailFragment extends BaseFragment {
         binding.noteTitle.setText(note.getTitle());
         binding.noteContent.setText(note.getContent());
 
-        datetime = note.getCreatedAt(); // TODO
+        datetime = note.getCreatedAt();
 
-        LocalDateTime dateTime = LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(note.getCreatedAt()),
-                ZoneId.systemDefault());
+        updateDateTimeText();
+    }
 
+    private void updateDateTimeText() {
+        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(datetime), ZoneId.systemDefault());
         binding.noteDate.setText(dateTime.format(dateTimeFormatter));
     }
-    
+
     private void saveNote() {
 
         String title = binding.noteTitle.getText().toString().trim();
