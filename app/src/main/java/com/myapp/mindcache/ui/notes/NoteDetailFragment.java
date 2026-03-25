@@ -1,6 +1,5 @@
 package com.myapp.mindcache.ui.notes;
 
-import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
@@ -14,8 +13,10 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.MenuProvider;
+import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentNoteDetailBinding;
@@ -30,9 +31,7 @@ import org.reactivestreams.Publisher;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
 import java.util.Locale;
 
 import io.reactivex.Completable;
@@ -47,7 +46,7 @@ public class NoteDetailFragment extends BaseFragment {
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
 
     private long noteId = 0L;
-    private long datetime = 0L;
+    private Long datetime = null;
 
     private FragmentNoteDetailBinding binding;
 
@@ -95,20 +94,7 @@ public class NoteDetailFragment extends BaseFragment {
                 return false;
             }
         }, getViewLifecycleOwner());
-
-        binding.noteDate.setOnClickListener(v -> {
-            Calendar c = Calendar.getInstance();
-            c.setTimeInMillis(datetime);
-            DatePickerDialog.OnDateSetListener listener = (date_picker, year, month, day_of_month) -> {
-                LocalDateTime dateTime = LocalDateTime.of(year, 1 + month, day_of_month, 12, 0);
-                ZonedDateTime zonedDateTime = dateTime.atZone(ZoneId.systemDefault());
-                datetime = zonedDateTime.toInstant().toEpochMilli();
-                updateDateTimeText();
-            };
-            new DatePickerDialog(requireContext(), listener,
-                    c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
-                    .show();
-        });
+        binding.noteDate.setOnClickListener(this::showDatePicker);
     }
 
     private void initViewModel() {
@@ -172,11 +158,14 @@ public class NoteDetailFragment extends BaseFragment {
         String title = binding.noteTitle.getText().toString().trim();
         String content = binding.noteContent.getText().toString().trim();
 
+        if (datetime == null)
+            datetime = System.currentTimeMillis();
+
         viewModel.saveDraft(noteId, title, content);
 
         Completable operation = noteId > 0L
                 ? viewModel.updateNote(new NoteUpdateDto(noteId, title, content, datetime))
-                : viewModel.addNote(new NoteCreateDto(title, content, System.currentTimeMillis()));
+                : viewModel.addNote(new NoteCreateDto(title, content, datetime));
 
         Disposable disposable = operation
                 .doOnError(e -> Log.d(TAG, "save note failed with " + e.getClass() + ": " + e.getMessage()))
@@ -204,5 +193,23 @@ public class NoteDetailFragment extends BaseFragment {
                             return Flowable.error(error);
                         })
                 );
+    }
+
+    private void showDatePicker(View v) {
+
+        FragmentManager fragmentManager = (requireActivity()).getSupportFragmentManager();
+        MaterialDatePicker<Long> datePicker = MaterialDatePicker
+                .Builder
+                .datePicker()
+                .setSelection(datetime)
+                .setTitleText(R.string.select_date)
+                .build();
+
+        datePicker.addOnPositiveButtonClickListener(selection -> {
+            datetime = selection;
+            updateDateTimeText();
+        });
+
+        datePicker.show(fragmentManager, "DATE_PICKER");
     }
 }
