@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.WindowManager;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.navigation.NavigationView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
@@ -34,23 +33,23 @@ import com.myapp.mindcache.utils.KeyboardUtils;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final long AUTO_LOGOUT_DELAY_MS = 5 * 60 * 1000; // 5 минут
+
     private NotesViewModelFactory notesViewModelFactory;
     private AuthViewModelFactory authViewModelFactory;
     private ImportExportViewModelFactory importExportViewModelFactory;
 
-    private DrawerLayout drawerLayout;
-    private NavigationView navigationView;
+    private NavController navController;
     private AppBarConfiguration appBarConfiguration;
+    private ActivityMainBinding binding;
+    private long lastInteractionTime = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        drawerLayout = binding.drawerLayout;
-        navigationView = binding.navView;
 
         MaterialToolbar toolbar = binding.topAppBar;
         setSupportActionBar(toolbar);
@@ -69,17 +68,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupNavigation() {
         try {
-            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
 
             appBarConfiguration = new AppBarConfiguration.Builder(
                     R.id.nav_notes_list,
                     R.id.nav_change_password,
                     R.id.nav_import_export)
-                    .setOpenableLayout(drawerLayout)
+                    .setOpenableLayout(binding.drawerLayout)
                     .build();
 
             NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-            NavigationUI.setupWithNavController(navigationView, navController);
+            NavigationUI.setupWithNavController(binding.navView, navController);
 
             navController.addOnDestinationChangedListener((controller, destination, arguments)
                     -> setDrawerEnabled(destination.getId() != R.id.nav_auth));
@@ -90,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setDrawerEnabled(boolean enabled) {
-        drawerLayout.setDrawerLockMode(enabled ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        binding.drawerLayout.setDrawerLockMode(enabled ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
         ActionBar supportActionBar = getSupportActionBar();
         if (supportActionBar != null)
             supportActionBar.setDisplayHomeAsUpEnabled(enabled);
@@ -127,9 +126,32 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onSupportNavigateUp() {
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         return NavigationUI.navigateUp(navController, appBarConfiguration)
                 || super.onSupportNavigateUp();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        lastInteractionTime = System.currentTimeMillis();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkSessionTimeout();
+    }
+
+    private void checkSessionTimeout() {
+        long timeSinceLastInteraction = System.currentTimeMillis() - lastInteractionTime;
+        if (lastInteractionTime > 0 && timeSinceLastInteraction > AUTO_LOGOUT_DELAY_MS) {
+            try {
+                Log.i(TAG, "navigateToLogin");
+                navController.navigate(R.id.action_global_auth);
+            } catch (IllegalStateException e) {
+                Log.e(TAG, "Navigation error", e);
+            }
+        }
     }
 
     public NotesViewModelFactory getNotesViewModelFactory() {
