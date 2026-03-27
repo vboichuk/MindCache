@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -17,7 +18,6 @@ import com.google.android.material.snackbar.Snackbar;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentAuthBinding;
-import com.myapp.mindcache.utils.BiometricAuthHelper;
 import com.myapp.mindcache.viewmodel.AuthViewModel;
 import com.myapp.mindcache.viewmodel.AuthViewModelFactory;
 
@@ -25,7 +25,6 @@ public class AuthFragment extends Fragment {
 
     private static final String TAG = AuthFragment.class.getSimpleName();
 
-    private final BiometricAuthHelper authHelper = new BiometricAuthHelper();
     private FragmentAuthBinding binding;
     private AuthViewModel authViewModel;
 
@@ -44,6 +43,17 @@ public class AuthFragment extends Fragment {
         observeViewModel();
         setupClickListeners();
 
+        OnBackPressedCallback backCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isAdded() && getView() != null) {
+                    Snackbar.make(getView(), "Please login", Snackbar.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
+
         authViewModel.checkRegistration();
     }
 
@@ -61,7 +71,7 @@ public class AuthFragment extends Fragment {
             } else if (state == AuthViewModel.AuthState.REGISTER) {
                 showRegisterMode();
             } else if (state == AuthViewModel.AuthState.AUTHENTICATED) {
-                navigateToNotes();
+                navigateToApp();
             }
         });
 
@@ -89,40 +99,20 @@ public class AuthFragment extends Fragment {
     }
 
     private void onLoginClick() {
+        if (binding.edittextPassword.getText() == null)
+            return;
         char[] password = binding.edittextPassword.getText().toString().toCharArray();
         authViewModel.login(password);
     }
 
     private void onRegisterClick() {
+        if (binding.edittextPassword.getText() == null)
+            return;
         char[] password = binding.edittextPassword.getText().toString().toCharArray();
         authViewModel.register(password);
     }
 
-    private void showBiometricPrompt() {
-        authHelper.authenticate(this, new BiometricAuthHelper.AuthCallback() {
-            @Override
-            public void onSuccess() {
-                navigateToNotes();
-            }
-
-            @Override
-            public void onFailure() {
-                if (isAdded() && getView() != null) {
-                    Snackbar.make(getView(), "Лицо не распознано", Snackbar.LENGTH_LONG).show();
-                }
-            }
-
-            @Override
-            public void onError(int errorCode, String error) {
-                String text = "Error: " + errorCode + " (" + error + ")";
-                if (isAdded() && getView() != null) {
-                    Snackbar.make(getView(), text, Snackbar.LENGTH_LONG).show();
-                }
-            }
-        });
-    }
-
-    private void navigateToNotes() {
+    private void navigateToApp() {
         NavController navController = Navigation.findNavController(requireView());
         if (navController.getPreviousBackStackEntry() != null) {
             navController.popBackStack();
