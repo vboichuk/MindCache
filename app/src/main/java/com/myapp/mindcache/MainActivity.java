@@ -7,8 +7,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
-import com.google.android.material.appbar.MaterialToolbar;
-
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -51,9 +49,8 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        MaterialToolbar toolbar = binding.topAppBar;
-        setSupportActionBar(toolbar);
-        toolbar.inflateMenu(R.menu.note_details_toolbar_menu);
+        setSupportActionBar(binding.topAppBar);
+        binding.topAppBar.inflateMenu(R.menu.note_details_toolbar_menu);
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
 
