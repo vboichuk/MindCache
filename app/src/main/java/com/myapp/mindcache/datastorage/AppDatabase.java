@@ -70,12 +70,13 @@ public abstract class AppDatabase extends RoomDatabase {
         ).subscribeOn(Schedulers.io());
     }
 
-    public static void exportDatabase(Context context) {
+    public static String exportDatabase(Context context) throws IOException {
         synchronized (LOCK) {
             Log.d(TAG, "start export");
             initExportManager(context);
-            exportManager.exportDatabase();
+            String path = exportManager.exportDatabase();
             Log.d(TAG, "export done");
+            return path;
         }
     }
 

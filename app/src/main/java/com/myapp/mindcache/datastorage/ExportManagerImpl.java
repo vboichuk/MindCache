@@ -39,17 +39,19 @@ public class ExportManagerImpl implements ExportManager {
     }
 
     @Override
-    public void exportDatabase() {
+    public String exportDatabase() throws IOException {
         File databaseFile = context.getDatabasePath(DB_NAME);
         String filename = obtainFilenameForExport();
-
+        String path;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Use MediaStore for Android 10+
-            exportViaMediaStore(context, databaseFile, filename);
+            path = exportViaMediaStore(context, databaseFile, filename);
         } else {
             // Use directory access for Android 9-
-            exportDirect(context, databaseFile, filename);
+            path = exportDirect(context, databaseFile, filename);
         }
+        Log.i(TAG, "Exported to: " + path);
+        return path;
     }
 
     @Override
@@ -89,7 +91,7 @@ public class ExportManagerImpl implements ExportManager {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
-    private static void exportViaMediaStore(Context context, File databaseFile, String filename) {
+    private static String exportViaMediaStore(Context context, File databaseFile, String filename) throws IOException {
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
         values.put(MediaStore.MediaColumns.MIME_TYPE, "application/x-sqlite3");
@@ -97,40 +99,41 @@ public class ExportManagerImpl implements ExportManager {
                 + "/" + context.getString(R.string.app_name));
 
         Uri collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-        Uri destUri = context.getContentResolver().insert(collection, values);
+        Uri destinationUri = context.getContentResolver().insert(collection, values);
 
-        if (destUri == null) {
-            return;
+        if (destinationUri == null) {
+            return "";
         }
 
         try (
                 FileInputStream fileInputStream = new FileInputStream(databaseFile);
-                OutputStream outputStream = context.getContentResolver().openOutputStream(destUri)
+                OutputStream outputStream = context.getContentResolver().openOutputStream(destinationUri)
         ) {
             copyData(fileInputStream, outputStream);
-            Log.i(TAG, "File exported successfully: " + filename);
+
+            // Сообщаем пользователю понятный путь
+            return Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()
+                    + "/" + context.getString(R.string.app_name) + "/" + filename;
+
         } catch (IOException e) {
-            Log.e(TAG, "Export failed: " + e.getMessage(), e);
-            tryToRemoveFile(context, destUri);
+            tryToRemoveFile(context, destinationUri);
+            throw e;
         }
     }
 
-    private static void exportDirect(Context context, File databaseFile, String filename) {
+    private static String exportDirect(Context context, File databaseFile, String filename) throws IOException {
         File exportDir = new File(Environment.getExternalStorageDirectory(),
                 context.getString(R.string.app_name));
 
         if (!exportDir.exists() && !exportDir.mkdirs()) {
             Log.e(TAG, "Failed to create export directory");
-            return;
+            throw new IOException("Failed to create export directory");
         }
 
         File exportFile = new File(exportDir, filename);
-        try {
-            copyFile(databaseFile, exportFile);
-            Log.i(TAG, "Exported to: " + exportFile.getAbsolutePath());
-        } catch (IOException e) {
-            Log.e(TAG, "Export failed", e);
-        }
+        copyFile(databaseFile, exportFile);
+        return exportFile.getAbsolutePath();
     }
 
     private static void copyFile(File source, File dest) throws IOException {
@@ -140,7 +143,7 @@ public class ExportManagerImpl implements ExportManager {
         ) {
             copyData(fileInputStream, outputStream);
         } catch (IOException e) {
-            Log.e(TAG, "Copying failed: " + e.getMessage(), e);
+            Log.e(TAG, "Copying failed: " + e.getMessage());
             tryToRemoveFile(dest);
             throw e;
         }

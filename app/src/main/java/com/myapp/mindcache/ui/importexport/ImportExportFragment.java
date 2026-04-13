@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentImportExportBinding;
@@ -96,10 +97,25 @@ public class ImportExportFragment extends BaseFragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSubscribe(s -> Log.d(TAG, "subscribe"))
                 .doFinally(() -> Log.d(TAG, "finish"))
-                .subscribe(() -> showMessage(R.string.export_successful),
+                .doOnSuccess(this::showExportSuccessDialog)
+                .doOnError(this::processError)
+                .ignoreElement()
+                .subscribe(() -> {},
                         this::processError);
 
         disposables.add(disposable);
+    }
+
+    private void showExportSuccessDialog(String path) {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
+        builder.setTitle(R.string.export_successful)
+                .setMessage(path)
+                .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss());
+
+        if (!isRemoving() && !isDetached()) {
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        }
     }
 
 

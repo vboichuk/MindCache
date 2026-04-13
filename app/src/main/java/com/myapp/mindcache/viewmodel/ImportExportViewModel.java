@@ -13,6 +13,7 @@ import java.io.File;
 import java.util.Arrays;
 
 import io.reactivex.Completable;
+import io.reactivex.Single;
 import io.reactivex.schedulers.Schedulers;
 
 public class ImportExportViewModel extends ViewModel {
@@ -27,8 +28,8 @@ public class ImportExportViewModel extends ViewModel {
     }
 
 
-    public Completable exportDb() {
-        return Completable.fromAction(() -> AppDatabase.exportDatabase(application))
+    public Single<String> exportDb() {
+        return Single.fromCallable(() -> AppDatabase.exportDatabase(application))
                 .subscribeOn(Schedulers.io());
     }
 
