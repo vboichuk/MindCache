@@ -42,7 +42,12 @@ public class AuthFragment extends Fragment {
         initViewModel();
         observeViewModel();
         setupClickListeners();
+        disableBackPressed();
 
+        authViewModel.checkRegistration();
+    }
+
+    private void disableBackPressed() {
         OnBackPressedCallback backCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -53,8 +58,6 @@ public class AuthFragment extends Fragment {
         };
 
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
-
-        authViewModel.checkRegistration();
     }
 
     private void initViewModel() {

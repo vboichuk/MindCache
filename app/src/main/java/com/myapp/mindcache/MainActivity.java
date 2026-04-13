@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private NavController navController;
     private AppBarConfiguration appBarConfiguration;
     private ActivityMainBinding binding;
-    private long lastInteractionTime = 0L;
+    private static long lastInteractionTime = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -140,9 +140,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkSessionTimeout() {
-        long timeSinceLastInteraction = System.currentTimeMillis() - lastInteractionTime;
-        if (lastInteractionTime > 0 && timeSinceLastInteraction > AUTO_LOGOUT_DELAY_MS) {
+        if (System.currentTimeMillis() > lastInteractionTime + AUTO_LOGOUT_DELAY_MS) {
             try {
+                navController.getBackStackEntry(R.id.nav_auth);
+                // entry exists - do nothing
+            } catch (IllegalArgumentException ignored) {
                 Log.i(TAG, "navigateToLogin");
                 navController.navigate(R.id.action_global_auth);
             } catch (IllegalStateException e) {
