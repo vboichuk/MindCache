@@ -36,7 +36,6 @@ public final class NoteMapper {
         return new Note(
                 dto.getTitle(),
                 dto.getContent(),
-                NoteMapper.generatePreview(dto.getContent()),
                 dto.getCreatedAt());
     }
 

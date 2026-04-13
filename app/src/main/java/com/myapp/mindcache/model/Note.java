@@ -21,7 +21,7 @@ public class Note {
         return new Note(0L, "", "", System.currentTimeMillis());
     }
 
-    public Note(String title, String content, String preview, long createdAt) {
+    public Note(String title, String content, long createdAt) {
         this.title = title;
         this.content = content;
         this.createdAt = createdAt;
