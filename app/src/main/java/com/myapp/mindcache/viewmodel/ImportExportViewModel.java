@@ -28,12 +28,12 @@ public class ImportExportViewModel extends ViewModel {
     }
 
 
-    public Single<String> exportDb() {
+    public Single<String> exportDatabase() {
         return Single.fromCallable(() -> AppDatabase.exportDatabase(application))
                 .subscribeOn(Schedulers.io());
     }
 
-    public Completable importDb(Uri uri, char[] password) {
+    public Completable importDatabase(Uri uri, char[] password) {
         Log.d(TAG, "start import " + uri);
         File tmpFile = application.getDatabasePath("temp.db");
         return Completable.fromAction(() -> AppDatabase.createTemporaryFile(application, uri, tmpFile))

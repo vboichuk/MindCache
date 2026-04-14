@@ -49,7 +49,7 @@ public class ImportExportFragment extends BaseFragment {
             return;
 
         Disposable disposable = showPasswordDialog("Password for database to import")
-                .flatMapCompletable(password -> viewModel.importDb(uri, password))
+                .flatMapCompletable(password -> viewModel.importDatabase(uri, password))
                 .retryWhen(errors -> errors.flatMap(e -> {
                     if (e instanceof WrongKeyException) {
                         return Flowable.just(1);
@@ -93,7 +93,7 @@ public class ImportExportFragment extends BaseFragment {
 
 
     private void onExportClick() {
-        Disposable disposable = viewModel.exportDb()
+        Disposable disposable = viewModel.exportDatabase()
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSubscribe(s -> Log.d(TAG, "subscribe"))
                 .doFinally(() -> Log.d(TAG, "finish"))

@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.myapp.mindcache.datastorage.AppDatabase;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
 import com.myapp.mindcache.exception.AuthError;
@@ -42,9 +43,9 @@ public class NotesViewModel extends AndroidViewModel {
 
     private final CompositeDisposable disposables = new CompositeDisposable();
 
-    private final SingleLiveEvent<Throwable> errors = new SingleLiveEvent<>();
     private final MutableLiveData<List<NoteMetadata>> notesMetadata = new MutableLiveData<>();
-    private final MutableLiveData<Map<Long, NotePreview>> decryptedNotes = new MutableLiveData<>(new HashMap<>());
+    private final MutableLiveData<Map<Long, NotePreview>> notePreviews = new MutableLiveData<>(new HashMap<>());
+    private final SingleLiveEvent<Throwable> errors = new SingleLiveEvent<>();
 
     private Note noteDraft = null;
 
@@ -57,6 +58,7 @@ public class NotesViewModel extends AndroidViewModel {
         this.keyManager = keyManager;
         this.repository = repository;
         observeRepository();
+        observeDatabaseChanged();
     }
 
     private void observeRepository() {
@@ -66,12 +68,25 @@ public class NotesViewModel extends AndroidViewModel {
         });
     }
 
+    private void observeDatabaseChanged() {
+        disposables.add(
+                AppDatabase.onDatabaseChanged()
+                        .subscribe(changed -> {
+                            if (changed) {
+                                Log.w(TAG, "Database changed, refreshing...");
+                                notePreviews.postValue(new HashMap<>());
+                                observeRepository();
+                            }
+                        })
+        );
+    }
+
     public LiveData<List<NoteMetadata>> getNotesMetadata() {
         return notesMetadata;
     }
 
     public LiveData<Map<Long, NotePreview>> getCachedPreviews() {
-        return decryptedNotes;
+        return notePreviews;
     }
 
     public LiveData<Throwable> getErrors() {
@@ -207,24 +222,24 @@ public class NotesViewModel extends AndroidViewModel {
     }
 
     private void addToCache(NotePreview newNote) {
-        Map<Long, NotePreview> current = decryptedNotes.getValue();
+        Map<Long, NotePreview> current = notePreviews.getValue();
         if (current != null) {
             current.put(newNote.getId(), newNote);
-            decryptedNotes.postValue(current);
+            notePreviews.postValue(current);
         }
     }
 
     private void removeFromCache(long id) {
-        Map<Long, NotePreview> current = decryptedNotes.getValue();
+        Map<Long, NotePreview> current = notePreviews.getValue();
         if (current != null) {
             current.remove(id);
             Log.d(TAG, "removeFromCache " + id);
-            decryptedNotes.postValue(current);
+            notePreviews.postValue(current);
         }
     }
 
     private boolean isNoteCached(long noteId) {
-        Map<Long, NotePreview> cache = decryptedNotes.getValue();
+        Map<Long, NotePreview> cache = notePreviews.getValue();
         return cache != null && cache.containsKey(noteId);
     }
 

@@ -20,8 +20,11 @@ import com.myapp.mindcache.model.MasterKeyEntity;
 import java.io.File;
 import java.io.IOException;
 
+import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.BehaviorSubject;
 
 @Database(
         entities = { EncryptedNote.class, MasterKeyEntity.class },
@@ -33,6 +36,8 @@ public abstract class AppDatabase extends RoomDatabase {
 
     private static final String TAG = AppDatabase.class.getSimpleName();
     private static final Object LOCK = new Object();
+    private static final BehaviorSubject<Boolean> databaseChangedSubject =
+            BehaviorSubject.createDefault(false);
 
     static final String DB_NAME = "secure_notes_db";
 
@@ -86,7 +91,15 @@ public abstract class AppDatabase extends RoomDatabase {
             initExportManager(context);
             exportManager.replaceDatabase(file);
             getInstance(context);
+            databaseChangedSubject.onNext(true);
         }
+    }
+
+    public static Observable<Boolean> onDatabaseChanged() {
+        return databaseChangedSubject
+                .hide()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private static void resetInstance() {
