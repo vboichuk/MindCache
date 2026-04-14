@@ -44,4 +44,7 @@
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="select_date">Select date</string>
+    <string name="password_for_database_to_import">Password for database to import</string>
+    <string name="select_option">Select option</string>
+    <string name="option_2">Option 2</string>
 </resources>

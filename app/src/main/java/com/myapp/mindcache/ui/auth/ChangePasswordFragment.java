@@ -26,6 +26,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class ChangePasswordFragment extends BaseFragment {
+    /** @noinspection unused*/
     private static final String TAG = ChangePasswordFragment.class.getSimpleName();
     private FragmentChangePasswordBinding binding;
     private AuthViewModel authViewModel;
@@ -78,6 +79,15 @@ public class ChangePasswordFragment extends BaseFragment {
 
         clearPasswords();
         clearAllErrors();
+
+        if (binding.edittextPassword.getText() == null)
+            return;
+
+        if (binding.edittextNewPassword1.getText() == null)
+            return;
+
+        if (binding.edittextNewPassword2.getText() == null)
+            return;
 
         passwordOld = binding.edittextPassword.getText().toString().toCharArray();
         passwordNew1 = binding.edittextNewPassword1.getText().toString().toCharArray();

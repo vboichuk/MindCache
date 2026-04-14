@@ -13,7 +13,6 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import com.google.android.material.snackbar.Snackbar;
-import com.myapp.mindcache.R;
 import com.myapp.mindcache.exception.AuthError;
 import com.myapp.mindcache.exception.WrongKeyException;
 import com.myapp.mindcache.utils.BiometricAuthHelper;
@@ -78,17 +77,6 @@ public abstract class BaseFragment extends Fragment {
     protected void showMessage(@StringRes int resId) {
         if (isAdded() && getView() != null) {
             Snackbar.make(getView(), resId, Snackbar.LENGTH_SHORT).show();
-        }
-    }
-
-    protected void navigateToLogin() {
-        String TAG = tag();
-        Log.i(TAG, "navigateToLogin");
-        try {
-            NavController navController = Navigation.findNavController(requireView());
-            navController.navigate(R.id.action_global_auth);
-        } catch (IllegalStateException e) {
-            Log.e(TAG, "Navigation error", e);
         }
     }
 

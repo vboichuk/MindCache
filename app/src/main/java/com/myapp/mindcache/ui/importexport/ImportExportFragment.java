@@ -4,13 +4,10 @@ import android.accounts.OperationCanceledException;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
-import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -20,6 +17,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentImportExportBinding;
@@ -48,7 +46,7 @@ public class ImportExportFragment extends BaseFragment {
         if (uri == null)
             return;
 
-        Disposable disposable = showPasswordDialog("Password for database to import")
+        Disposable disposable = showPasswordDialog()
                 .flatMapCompletable(password -> viewModel.importDatabase(uri, password))
                 .retryWhen(errors -> errors.flatMap(e -> {
                     if (e instanceof WrongKeyException) {
@@ -91,7 +89,6 @@ public class ImportExportFragment extends BaseFragment {
         filePickerLauncher.launch(new String[]{"*/*"});
     }
 
-
     private void onExportClick() {
         Disposable disposable = viewModel.exportDatabase()
                 .observeOn(AndroidSchedulers.mainThread())
@@ -106,6 +103,7 @@ public class ImportExportFragment extends BaseFragment {
         disposables.add(disposable);
     }
 
+
     private void showExportSuccessDialog(String path) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
         builder.setTitle(R.string.export_successful)
@@ -119,39 +117,33 @@ public class ImportExportFragment extends BaseFragment {
     }
 
 
-    public Single<char[]> showPasswordDialog(String prompt) {
+    public Single<char[]> showPasswordDialog() {
 
         return Single.create((SingleEmitter<char[]> emitter) -> {
                     if (Looper.myLooper() != Looper.getMainLooper())
                         throw new IllegalStateException("showPasswordDialog must be called from main thread");
-                    showDialog(emitter, prompt);
+                    showDialog(emitter);
                 })
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .observeOn(Schedulers.io());
     }
 
-    private void showDialog(SingleEmitter<char[]> emitter, String prompt) {
-        LinearLayout layout = new LinearLayout(requireActivity());
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50, 20, 50, 20);
+    private void showDialog(SingleEmitter<char[]> emitter) {
 
-        EditText passwordInput = new EditText(requireActivity());
-        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        passwordInput.setHint(R.string.password);
-        passwordInput.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-
-        layout.addView(passwordInput);
+        View dialogView = LayoutInflater.from(requireActivity())
+                .inflate(R.layout.dialog_password_input, null);
+        TextInputEditText passwordInput = dialogView.findViewById(R.id.password_input);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(requireActivity());
         builder.setTitle(R.string.import_confirmation);
-        builder.setMessage(prompt);
-        builder.setView(layout);
+        builder.setMessage(R.string.password_for_database_to_import);
+        builder.setView(dialogView);
 
         builder.setPositiveButton(R.string.ok, (dialog, which) -> {
             dialog.dismiss();
+            if (passwordInput.getText() == null)
+                return;
+
             char[] password = passwordInput.getText().toString().toCharArray();
             emitter.onSuccess(password);
         });
