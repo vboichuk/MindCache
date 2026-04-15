@@ -119,7 +119,7 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     private static AppDatabase buildDatabase(Context appContext, String dbName) {
-        Log.i(TAG, "buildDatabase");
+        Log.d(TAG, "buildDatabase");
         return Room.databaseBuilder(appContext, AppDatabase.class, dbName)
                 .addMigrations(MIGRATION_1_2)
                 .setJournalMode(JournalMode.TRUNCATE)

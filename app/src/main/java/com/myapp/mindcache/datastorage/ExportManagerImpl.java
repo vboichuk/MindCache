@@ -77,11 +77,11 @@ public class ExportManagerImpl implements ExportManager {
                 FileOutputStream outputStream = new FileOutputStream(file)
         ) {
             if (inputStream == null) {
-                Log.e(TAG, "Не удалось открыть InputStream из Uri");
+                Log.e(TAG, "Opening InputStream from Uri is failed");
                 return;
             }
             copyData(inputStream, outputStream);
-            Log.i(TAG, "The file was successfully imported to " + file.getAbsolutePath());
+            Log.i(TAG, "The file was successfully copied to " + file.getAbsolutePath());
         }
     }
 

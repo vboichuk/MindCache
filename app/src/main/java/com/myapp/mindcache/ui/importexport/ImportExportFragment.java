@@ -42,24 +42,6 @@ public class ImportExportFragment extends BaseFragment {
     private final ActivityResultLauncher<String[]> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), this::performImport);
 
-    private void performImport(Uri uri) {
-        if (uri == null)
-            return;
-
-        Disposable disposable = showPasswordDialog()
-                .flatMapCompletable(password -> viewModel.importDatabase(uri, password))
-                .retryWhen(errors -> errors.flatMap(e -> {
-                    if (e instanceof WrongKeyException) {
-                        return Flowable.just(1);
-                    } else {
-                        return Flowable.error(e);
-                    }
-                }))
-                .subscribe(() -> showMessage(R.string.import_successful), this::processError);
-
-        disposables.add(disposable);
-    }
-
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentImportExportBinding.inflate(inflater, container, false);
@@ -104,6 +86,25 @@ public class ImportExportFragment extends BaseFragment {
     }
 
 
+    private void performImport(Uri uri) {
+        if (uri == null)
+            return;
+
+        Disposable disposable = showPasswordDialog()
+                .flatMapCompletable(password -> viewModel.importDatabase(uri, password))
+                .retryWhen(errors -> errors.flatMap(e -> {
+                    if (e instanceof WrongKeyException) {
+                        return Flowable.just(1);
+                    } else {
+                        return Flowable.error(e);
+                    }
+                }))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::showImportSuccessDialog, this::processError);
+
+        disposables.add(disposable);
+    }
+
     private void showExportSuccessDialog(String path) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
         builder.setTitle(R.string.export_successful)
@@ -116,6 +117,16 @@ public class ImportExportFragment extends BaseFragment {
         }
     }
 
+    private void showImportSuccessDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
+        builder.setMessage(R.string.import_successful)
+                .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss());
+
+        if (!isRemoving() && !isDetached()) {
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        }
+    }
 
     public Single<char[]> showPasswordDialog() {
 
@@ -140,7 +151,6 @@ public class ImportExportFragment extends BaseFragment {
         builder.setView(dialogView);
 
         builder.setPositiveButton(R.string.ok, (dialog, which) -> {
-            dialog.dismiss();
             if (passwordInput.getText() == null)
                 return;
 
@@ -148,15 +158,14 @@ public class ImportExportFragment extends BaseFragment {
             emitter.onSuccess(password);
         });
 
-        builder.setNegativeButton(R.string.cancel, (dialog, which) -> {
-            dialog.dismiss();
-            emitter.onError(new OperationCanceledException("Operation was cancelled by user"));
-        });
+        builder.setNegativeButton(R.string.cancel, (dialog, which) ->
+                emitter.onError(new OperationCanceledException("Operation was cancelled by user")));
 
         AlertDialog dialog = builder.create();
         dialog.show();
 
         emitter.setCancellable(() -> {
+            Log.i(TAG, "emitter.setCancellable: dismiss");
             if (dialog.isShowing()) {
                 dialog.dismiss();
             }
