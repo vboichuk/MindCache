@@ -2,6 +2,7 @@ package com.myapp.mindcache.ui.notes;
 
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
+import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -22,6 +23,7 @@ import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentNoteDetailBinding;
 import com.myapp.mindcache.dto.NoteCreateDto;
 import com.myapp.mindcache.dto.NoteUpdateDto;
+import com.myapp.mindcache.utils.PreviewGenerator;
 import com.myapp.mindcache.viewmodel.NotesViewModel;
 import com.myapp.mindcache.viewmodel.NotesViewModelFactory;
 import com.myapp.mindcache.model.Note;
@@ -34,6 +36,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+import io.noties.markwon.Markwon;
+import io.noties.markwon.editor.MarkwonEditor;
+import io.noties.markwon.editor.MarkwonEditorTextWatcher;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -45,14 +50,16 @@ public class NoteDetailFragment extends BaseFragment {
     private static final String ARG_NOTE_ID = "noteId";
     private static final String TAG = NoteDetailFragment.class.getSimpleName();
 
+    private Markwon markwon;
+
     private long noteId = 0L;
     private Long datetime = null;
+    private String rawContent;
 
     private FragmentNoteDetailBinding binding;
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ofPattern("dd MMMM, yyyy", Locale.getDefault());
-
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -66,14 +73,43 @@ public class NoteDetailFragment extends BaseFragment {
         Log.d(TAG, "onViewCreated");
 
         setupActions();
+        setupUIListeners();
         initViewModel();
         observeViewModel();
+        setupMarkwon();
 
         if (getArguments() != null) {
             noteId = getArguments().getLong(ARG_NOTE_ID);
         }
 
         loadNote();
+    }
+
+    private void setupUIListeners() {
+        binding.noteDate.setOnClickListener(this::showDatePicker);
+        binding.noteContent.setOnFocusChangeListener((v, hasFocus) -> setEditMode(hasFocus));
+    }
+
+    private void setEditMode(boolean editMode) {
+
+        if (editMode) {
+            binding.noteContent.setText(rawContent);
+        } else {
+            rawContent = binding.noteContent.getText().toString().trim();
+            if (!rawContent.startsWith("##"))
+                rawContent = "## " + rawContent;
+             markwon.setMarkdown(binding.noteContent, rawContent);
+            // Опционально: делаем ссылки кликабельными
+            binding.noteContent.setMovementMethod(LinkMovementMethod.getInstance());
+        }
+    }
+
+    private void setupMarkwon() {
+        markwon = Markwon.create(this.requireContext());
+        MarkwonEditor markwonEditor = MarkwonEditor.create(markwon);
+
+        binding.noteContent.addTextChangedListener(
+                MarkwonEditorTextWatcher.withProcess(markwonEditor));
     }
 
     private void setupActions() {
@@ -94,7 +130,6 @@ public class NoteDetailFragment extends BaseFragment {
                 return false;
             }
         }, getViewLifecycleOwner());
-        binding.noteDate.setOnClickListener(this::showDatePicker);
     }
 
     private void initViewModel() {
@@ -140,12 +175,13 @@ public class NoteDetailFragment extends BaseFragment {
         if (note == null)
             return;
 
-        binding.noteTitle.setText(note.getTitle());
         binding.noteContent.setText(note.getContent());
 
         datetime = note.getCreatedAt();
+        rawContent = note.getContent();
 
         updateDateTimeText();
+        setEditMode(false);
     }
 
     private void updateDateTimeText() {
@@ -155,8 +191,9 @@ public class NoteDetailFragment extends BaseFragment {
 
     private void saveNote() {
 
-        String title = binding.noteTitle.getText().toString().trim();
-        String content = binding.noteContent.getText().toString().trim();
+        String title = PreviewGenerator.getTitle(binding.noteContent.getText().toString());
+        String preview = PreviewGenerator.getPreview(binding.noteContent.getText().toString());
+        String content = rawContent;
 
         if (datetime == null)
             datetime = System.currentTimeMillis();
@@ -164,8 +201,8 @@ public class NoteDetailFragment extends BaseFragment {
         viewModel.saveDraft(noteId, title, content);
 
         Completable operation = noteId > 0L
-                ? viewModel.updateNote(new NoteUpdateDto(noteId, title, content, datetime))
-                : viewModel.addNote(new NoteCreateDto(title, content, datetime));
+                ? viewModel.updateNote(new NoteUpdateDto(noteId, title, content, preview, datetime))
+                : viewModel.addNote(new NoteCreateDto(title, content, preview, datetime));
 
         Disposable disposable = operation
                 .doOnError(e -> Log.d(TAG, "save note failed with " + e.getClass() + ": " + e.getMessage()))

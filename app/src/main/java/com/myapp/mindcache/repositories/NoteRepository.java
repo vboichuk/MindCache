@@ -65,21 +65,10 @@ public class NoteRepository {
 
         return Single.fromCallable(() -> {
                     Note note = NoteMapper.fromDto(dto);
-                    EncryptedNote encryptedNote = encryptionService.encryptNote(note, masterKey);
+                    EncryptedNote encryptedNote = encryptionService.encryptNote(note, dto.getPreview(), masterKey);
                     long id = noteDao().insert(encryptedNote);
                     note.setId(id);
-                    return NoteMapper.toPreview(note);
-                })
-                .subscribeOn(Schedulers.io());
-    }
-
-    public Completable deleteNote(long id) {
-        return Completable.fromAction(() -> {
-                    int deletedCount = noteDao().delete(id);
-                    if (deletedCount == 0) {
-                        throw new NoteNotFoundException(id);
-                    }
-                    Log.i(TAG, "Note deleted with id: " + id);
+                    return NoteMapper.toPreview(note, dto.getPreview());
                 })
                 .subscribeOn(Schedulers.io());
     }
@@ -94,19 +83,29 @@ public class NoteRepository {
                     if (existing == null) {
                         throw new NoteNotFoundException(dto.getId());
                     }
-                    String preview = NoteMapper.generatePreview(dto.getContent());
                     existing.setTitle(encryptionService.encrypt(dto.getTitle(), masterKey));
                     existing.setContent(encryptionService.encrypt(dto.getContent(), masterKey));
-                    existing.setPreview(encryptionService.encrypt(preview, masterKey));
+                    existing.setPreview(encryptionService.encrypt(dto.getPreview(), masterKey));
                     existing.setCreatedAt(dto.getCreatedAt());
                     noteDao().update(existing);
                     Log.d(TAG, "Note title and content updated for ID: " + dto.getId());
                     return new NotePreview(
                             existing.getId(),
                             dto.getTitle(),
-                            preview,
+                            dto.getPreview(),
                             existing.getCreatedAt()
                     );
+                })
+                .subscribeOn(Schedulers.io());
+    }
+
+    public Completable deleteNote(long id) {
+        return Completable.fromAction(() -> {
+                    int deletedCount = noteDao().delete(id);
+                    if (deletedCount == 0) {
+                        throw new NoteNotFoundException(id);
+                    }
+                    Log.i(TAG, "Note deleted with id: " + id);
                 })
                 .subscribeOn(Schedulers.io());
     }

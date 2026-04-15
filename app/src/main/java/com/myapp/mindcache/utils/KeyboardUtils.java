@@ -7,6 +7,8 @@ import android.view.inputmethod.InputMethodManager;
 
 public class KeyboardUtils {
 
+    private KeyboardUtils() { }
+
     // Скрыть клавиатуру для определенного View
     public static void hideKeyboard(View view) {
         if (view == null) return;

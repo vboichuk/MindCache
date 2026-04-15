@@ -7,12 +7,14 @@ public class NoteUpdateDto {
     private final String content;
 
 
+    private final String preview;
     private final long createdAt;
 
-    public NoteUpdateDto(Long id, String title, String content, long createdAt) {
+    public NoteUpdateDto(Long id, String title, String content, String preview, long createdAt) {
         this.id = id;
         this.title = title;
         this.content = content;
+        this.preview = preview;
         this.createdAt = createdAt;
     }
 
@@ -32,4 +34,7 @@ public class NoteUpdateDto {
         return createdAt;
     }
 
+    public String getPreview() {
+        return preview;
+    }
 }

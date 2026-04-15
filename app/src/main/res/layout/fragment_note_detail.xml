@@ -24,17 +24,6 @@
                 android:textColor="@color/note_detail_datetime"/>
 
             <EditText
-                android:id="@+id/note_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:autofillHints="@string/hint_title"
-                android:inputType="textCapSentences|textAutoCorrect|textMultiLine"
-                android:textSize="24sp"
-                android:textColorHint="@android:color/darker_gray"
-                android:hint="@string/hint_title"
-                android:textStyle="bold"/>
-
-            <EditText
                 android:id="@+id/note_content"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

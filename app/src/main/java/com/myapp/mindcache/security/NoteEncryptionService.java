@@ -2,7 +2,6 @@ package com.myapp.mindcache.security;
 
 import androidx.annotation.NonNull;
 
-import com.myapp.mindcache.mappers.NoteMapper;
 import com.myapp.mindcache.model.EncryptedNote;
 import com.myapp.mindcache.model.Note;
 import com.myapp.mindcache.model.NotePreview;
@@ -15,11 +14,11 @@ public class NoteEncryptionService {
         return CryptoHelper.encrypt(text, masterKey);
     }
 
-    public EncryptedNote encryptNote(@NonNull Note note, SecretKey key) throws Exception {
+    public EncryptedNote encryptNote(@NonNull Note note, String notePreview, SecretKey key) throws Exception {
 
         String title = CryptoHelper.encrypt(note.getTitle(), key);
         String content = CryptoHelper.encrypt(note.getContent(), key);
-        String preview = CryptoHelper.encrypt(NoteMapper.generatePreview(note.getContent()), key);
+        String preview = CryptoHelper.encrypt(notePreview, key);
 
         return new EncryptedNote(
                 note.getId(),
