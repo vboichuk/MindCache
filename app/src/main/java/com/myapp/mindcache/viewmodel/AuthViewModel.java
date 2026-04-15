@@ -24,7 +24,7 @@ public class AuthViewModel extends AndroidViewModel {
     private final KeyManager keyManager;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>();
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final MutableLiveData<Throwable> errorMessage = new MutableLiveData<>();
 
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
 
@@ -38,7 +38,7 @@ public class AuthViewModel extends AndroidViewModel {
         return authState;
     }
 
-    public MutableLiveData<String> getErrorMessage() {
+    public MutableLiveData<Throwable> getError() {
         return errorMessage;
     }
 
@@ -51,7 +51,7 @@ public class AuthViewModel extends AndroidViewModel {
                         isRegistered -> authState.postValue(isRegistered ? AuthState.LOGIN : AuthState.REGISTER),
                         error -> {
                             isLoading.postValue(false);
-                            errorMessage.postValue(error.getMessage());
+                            errorMessage.postValue(error);
                             Log.e(TAG, "Error checking registration", error);
                         }
                 );
@@ -79,7 +79,7 @@ public class AuthViewModel extends AndroidViewModel {
                         },
                         error -> {
                             isLoading.postValue(false);
-                            errorMessage.postValue("Login error: " + error.getMessage());
+                            errorMessage.postValue(error);
                             Log.e(TAG, "Login error", error);
                         }
                 );
@@ -89,7 +89,7 @@ public class AuthViewModel extends AndroidViewModel {
     public void register(char[] password) {
         if (password == null || password.length == 0) {
             Log.e(TAG, "Password cannot be null or empty");
-            errorMessage.postValue("Password cannot be null or empty");
+            errorMessage.postValue(new RuntimeException("Password cannot be null or empty"));
             return;
         }
 
@@ -105,7 +105,7 @@ public class AuthViewModel extends AndroidViewModel {
                         },
                         error -> {
                             isLoading.postValue(false);
-                            errorMessage.postValue("Registration error: " + error.getMessage());
+                            errorMessage.postValue(error);
                             Log.e(TAG, "Registration error", error);
                         }
                 );

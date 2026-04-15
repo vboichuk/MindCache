@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -15,6 +16,8 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.myapp.mindcache.MainActivity;
 import com.myapp.mindcache.R;
 import com.myapp.mindcache.databinding.FragmentAuthBinding;
@@ -41,10 +44,16 @@ public class AuthFragment extends Fragment {
 
         initViewModel();
         observeViewModel();
-        setupClickListeners();
+        setupUIListeners();
         disableBackPressed();
 
         authViewModel.checkRegistration();
+    }
+
+    private void onFocusChanged(View view, boolean hasFocus) {
+        if (hasFocus) {
+            clearErrorForView((TextInputEditText) view);
+        }
     }
 
     private void disableBackPressed() {
@@ -78,14 +87,42 @@ public class AuthFragment extends Fragment {
             }
         });
 
-        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMsg -> {
-            Log.i(TAG, "Auth error: " + errorMsg);
-            if (errorMsg != null) {
+        authViewModel.getError().observe(getViewLifecycleOwner(), error -> {
+            Log.w(TAG, "Auth error: " + error);
+            if (error != null) {
                 if (isAdded() && getView() != null) {
-                    Snackbar.make(getView(), errorMsg, Snackbar.LENGTH_LONG).show();
+                    markErrorForView(binding.edittextPassword,
+                            error.getClass().getSimpleName() + ": " + error.getMessage());
+                    Snackbar.make(getView(), "Msg:" + error.getMessage(), Snackbar.LENGTH_LONG).show();
                 }
             }
         });
+    }
+
+    private static TextInputLayout findTextInputLayout(View view) {
+        ViewParent parent = view.getParent();
+        while (parent != null) {
+            if (parent instanceof TextInputLayout) {
+                return (TextInputLayout) parent;
+            }
+            parent = parent.getParent();
+        }
+        return null;
+    }
+
+    private void markErrorForView(TextInputEditText editText, String errorMsg) {
+        TextInputLayout parent = findTextInputLayout(editText);
+        if (parent != null) {
+            parent.setError(errorMsg);
+        }
+    }
+
+    private void clearErrorForView(TextInputEditText editText) {
+        TextInputLayout parent = findTextInputLayout(editText);
+        if (parent != null) {
+            parent.setError(null);
+            parent.setErrorEnabled(false);
+        }
     }
 
     private void showRegisterMode() {
@@ -96,9 +133,10 @@ public class AuthFragment extends Fragment {
         binding.btnRegister.setVisibility(View.GONE);
     }
 
-    private void setupClickListeners() {
+    private void setupUIListeners() {
         binding.btnLogin.setOnClickListener(v -> onLoginClick());
         binding.btnRegister.setOnClickListener(v -> onRegisterClick());
+        binding.edittextPassword.setOnFocusChangeListener(this::onFocusChanged);
     }
 
     private void onLoginClick() {

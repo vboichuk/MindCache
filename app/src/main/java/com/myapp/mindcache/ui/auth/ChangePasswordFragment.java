@@ -59,7 +59,7 @@ public class ChangePasswordFragment extends BaseFragment {
     }
 
     private void observeViewModel() {
-        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::showMessage);
+        authViewModel.getError().observe(getViewLifecycleOwner(), this::showError);
     }
 
     private void setupClickListeners() {
@@ -69,7 +69,7 @@ public class ChangePasswordFragment extends BaseFragment {
         binding.edittextNewPassword2.setOnFocusChangeListener(this::onFocusChanged);
     }
 
-    void onFocusChanged(View view, Boolean hasFocus) {
+    private void onFocusChanged(View view, Boolean hasFocus) {
         if (hasFocus) {
             clearErrorForView((TextInputEditText) view);
         }
@@ -107,7 +107,7 @@ public class ChangePasswordFragment extends BaseFragment {
         disposables.add(disposable);
     }
 
-    private TextInputLayout findTextInputLayout(View view) {
+    private static TextInputLayout findTextInputLayout(View view) {
         ViewParent parent = view.getParent();
 
         while (parent != null) {

@@ -23,8 +23,8 @@ import io.reactivex.disposables.CompositeDisposable;
 
 public abstract class BaseFragment extends Fragment {
 
-    protected final CompositeDisposable disposables = new CompositeDisposable();
     protected NotesViewModel viewModel;
+    protected final CompositeDisposable disposables = new CompositeDisposable();
     private final BiometricAuthHelper authHelper = new BiometricAuthHelper();
 
     protected void processError(@Nullable Throwable error) {
