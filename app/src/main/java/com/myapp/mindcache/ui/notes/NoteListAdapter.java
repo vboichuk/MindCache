@@ -16,6 +16,7 @@ import com.myapp.mindcache.mappers.NoteMapper;
 import com.myapp.mindcache.model.NoteMetadata;
 import com.myapp.mindcache.model.NotePreview;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,6 +42,8 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
             DateTimeFormatter.ofPattern("dd", Locale.getDefault());
     private final DateTimeFormatter formatterMon =
             DateTimeFormatter.ofPattern("MMMM", Locale.getDefault());
+    private final DateTimeFormatter formatterYear =
+            DateTimeFormatter.ofPattern("yyyy", Locale.getDefault());
 
     public interface OnItemClickListener {
         void onItemClick(NotePreview note);
@@ -167,6 +170,11 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
 
         holder.tvDateDay.setText(note.getCreatedAt().format(formatterDay));
         holder.tvDateMon.setText(note.getCreatedAt().format(formatterMon));
+        if (note.getCreatedAt().getYear() != LocalDateTime.now().getYear()) {
+            holder.tvDateYear.setText(note.getCreatedAt().format(formatterYear));
+        } else {
+            holder.tvDateYear.setText("");
+        }
 
         holder.tvTitle.setText(note.getTitle());
         holder.tvPreview.setText(note.getPreview());
@@ -187,12 +195,13 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteListAdapter.ViewHo
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvDateDay, tvDateMon, tvLock, tvEmoji, tvTitle, tvPreview, tvId;
+        TextView tvDateDay, tvDateMon, tvDateYear, tvLock, tvTitle, tvPreview, tvId;
 
         public ViewHolder(View itemView) {
             super(itemView);
             tvDateDay = itemView.findViewById(R.id.tvDateDay);
             tvDateMon = itemView.findViewById(R.id.tvDateMon);
+            tvDateYear = itemView.findViewById(R.id.tvDateYear);
             tvLock = itemView.findViewById(R.id.tvLock);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvPreview = itemView.findViewById(R.id.tvPreview);

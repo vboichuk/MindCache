@@ -17,8 +17,8 @@
             android:id="@+id/tvDateDay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="?attr/colorPrimary"
-            android:textSize="28sp"
+            android:textColor="?attr/colorPrimaryVariant"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
@@ -26,8 +26,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:textColor="?attr/colorPrimary"
+            android:textColor="?attr/colorPrimaryVariant"
             android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvDateYear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:textColor="?attr/colorPrimaryVariant"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
         <Space
             android:layout_width="0dp"
@@ -56,7 +65,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="?attr/colorPrimary"
         android:textSize="19sp"
         android:maxLines="1"
         android:textStyle="bold" />
@@ -69,7 +78,6 @@
         android:ellipsize="end"
         android:maxLines="2"
         android:minLines="2"
-        android:textColor="@color/card_preview"
         android:textSize="16sp" />
 
 </LinearLayout>

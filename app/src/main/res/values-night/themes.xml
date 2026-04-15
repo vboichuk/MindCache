@@ -6,23 +6,34 @@
         <item name="colorPrimaryVariant">@color/orange_1</item>
         <item name="colorOnPrimary">@color/black</item>
 
-        <item name="colorSecondary">@color/blueDark</item>
+        <item name="colorSecondary">@color/onSurface</item>
         <item name="colorSecondaryVariant">#176AAC</item>
 <!--        <item name="colorOnSecondary">@color/delete_red</item>-->
 
         <item name="colorSurface">@color/surface_color</item>
         <item name="colorOnSurface">@color/white</item>
 
+        <item name="android:textColor">@color/semi_white</item>
+        <item name="android:editTextColor">@color/semi_white</item>
+
         <item name="android:colorBackground">@color/background</item>
 <!--        <item name="colorOnBackground">@color/delete_red</item>-->
 <!--        <item name="android:textColor">@color/delete_red</item>-->
 
-        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:statusBarColor">@color/action_bar</item>
+
         <item name="toolbarStyle">@style/ActionBarStyle</item>
+        <item name="drawerArrowStyle">@style/BackArrowStyle</item>
     </style>
 
     <!-- Стиль для ActionBar/Toolbar -->
     <style name="ActionBarStyle" parent="Widget.MaterialComponents.Toolbar.Surface">
-        <item name="android:background">@color/black</item>
+        <item name="android:background">@color/action_bar</item>
+        <item name="titleTextColor">@color/on_action_bar</item>
+    </style>
+
+    <style name="BackArrowStyle" parent="Widget.AppCompat.DrawerArrowToggle">
+        <item name="spinBars">true</item>
+        <item name="color">@color/on_action_bar</item> <!-- Arrow Color -->
     </style>
 </resources>
