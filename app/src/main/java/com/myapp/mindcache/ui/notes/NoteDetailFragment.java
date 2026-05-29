@@ -2,6 +2,7 @@ package com.myapp.mindcache.ui.notes;
 
 import android.os.Bundle;
 import android.security.keystore.UserNotAuthenticatedException;
+import android.text.InputType;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -62,6 +63,18 @@ public class NoteDetailFragment extends BaseFragment {
             DateTimeFormatter.ofPattern("dd MMMM, yyyy", Locale.getDefault());
 
     @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (binding.noteContent.hasFocus()) {
+            rawContent = binding.noteContent.getText().toString();
+        }
+
+        outState.putLong("noteId", noteId);
+        outState.putLong("datetime", datetime != null ? datetime : 0L);
+        outState.putString("rawContent", rawContent);
+    }
+
+    @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentNoteDetailBinding.inflate(inflater, container, false);
         return binding.getRoot();
@@ -70,7 +83,12 @@ public class NoteDetailFragment extends BaseFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        Log.d(TAG, "onViewCreated");
+
+        if (savedInstanceState != null) {
+            noteId = savedInstanceState.getLong("noteId");
+            datetime = savedInstanceState.getLong("datetime");
+            rawContent = savedInstanceState.getString("rawContent");
+        }
 
         setupActions();
         setupUIListeners();
@@ -82,18 +100,26 @@ public class NoteDetailFragment extends BaseFragment {
             noteId = getArguments().getLong(ARG_NOTE_ID);
         }
 
-        loadNote();
+        if (savedInstanceState == null) {
+            loadNote();
+        } else {
+            display();
+        }
     }
 
     private void setupUIListeners() {
         binding.noteDate.setOnClickListener(this::showDatePicker);
+        binding.noteContent.setFocusedByDefault(false);
         binding.noteContent.setOnFocusChangeListener((v, hasFocus) -> setEditMode(hasFocus));
     }
 
     private void setEditMode(boolean editMode) {
-
+        Log.d(TAG, "setEditMode: " + editMode);
+        int inputType = binding.noteContent.getInputType();
         if (editMode) {
             binding.noteContent.setText(rawContent);
+            inputType |= InputType.TYPE_TEXT_FLAG_AUTO_CORRECT;
+            inputType &= ~InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         } else {
             rawContent = binding.noteContent.getText().toString().trim();
             if (!rawContent.startsWith("##"))
@@ -101,7 +127,10 @@ public class NoteDetailFragment extends BaseFragment {
              markwon.setMarkdown(binding.noteContent, rawContent);
             // Опционально: делаем ссылки кликабельными
             binding.noteContent.setMovementMethod(LinkMovementMethod.getInstance());
+            inputType &= ~InputType.TYPE_TEXT_FLAG_AUTO_CORRECT;
+            inputType |= InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         }
+        binding.noteContent.setInputType(inputType);
     }
 
     private void setupMarkwon() {
@@ -140,7 +169,6 @@ public class NoteDetailFragment extends BaseFragment {
 
     private void observeViewModel() {
         Log.d(TAG, "observeViewModel");
-
         viewModel.getErrors().observe(getViewLifecycleOwner(), this::processError);
     }
 
@@ -175,11 +203,14 @@ public class NoteDetailFragment extends BaseFragment {
         if (note == null)
             return;
 
-        binding.noteContent.setText(note.getContent());
-
         datetime = note.getCreatedAt();
         rawContent = note.getContent();
 
+        display();
+    }
+
+    private void display() {
+        binding.noteContent.setText(rawContent);
         updateDateTimeText();
         setEditMode(false);
     }
