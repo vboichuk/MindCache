@@ -2,7 +2,6 @@ package com.myapp.mindcache.security;
 
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -27,13 +26,9 @@ import io.reactivex.schedulers.Schedulers;
 public class KeyManagerImpl implements KeyManager {
 
     private static final String TAG = KeyManagerImpl.class.getSimpleName();
-    private static final String PREFS_PASSWORD_HASH = "password_hash";
-    private static final String PREFS_PASSWORD_SALT = "password_salt";
-    private static final String AUTH_PREFS = "auth_prefs";
     private static final String alias = "my_secret_key_alias";
     private static final int VALIDATION_STRING_LENGTH = 32;
 
-    private final Context context;
     private final KeyGenerator keyGenerator;
     private final MasterKeyRepository masterKeyRepository;
     private final AndroidKeystoreKeyManager keystoreKeyManager;
@@ -41,7 +36,6 @@ public class KeyManagerImpl implements KeyManager {
     public KeyManagerImpl(Context context,
                           KeyGenerator keyGenerator,
                           AndroidKeystoreKeyManager keystoreKeyManager) {
-        this.context = context;
         this.keyGenerator = keyGenerator;
         this.masterKeyRepository = new MasterKeyRepository(context);
         this.keystoreKeyManager = keystoreKeyManager;
@@ -50,49 +44,6 @@ public class KeyManagerImpl implements KeyManager {
     @Override
     public Single<Boolean> isUserRegistered() {
         return masterKeyRepository.exists();
-    }
-
-
-    /**
-     * Аутентифицирует пользователя по паролю.
-     * <p>
-     * Метод проверяет соответствие переданного пароля сохранённому хешу.
-     * При успешной проверке Completable завершается без ошибок, иначе — с {@link SecurityException}.
-     * </p>
-     *
-     * <p><b>Алгоритм работы:</b></p>
-     * <ol>
-     *   <li>Чтение сохранённого хеша и соли из SharedPreferences</li>
-     *   <li>Декодирование из Base64 в байтовые массивы</li>
-     *   <li>Генерация PBKDF2-хеша переданного пароля с использованием соли</li>
-     *   <li>Сравнение полученного хеша с сохранённым</li>
-     * </ol>
-     *
-     * @param password пароль для аутентификации (массив символов)
-     * @return Completable, завершающийся при успешной аутентификации
-     * @throws SecurityException если пароль неверный
-     * @throws IllegalArgumentException если сохранённые данные отсутствуют или повреждены
-     * @throws RuntimeException при ошибках чтения SharedPreferences или декодирования Base64
-     *
-     * @implNote Метод выполняется на фоновом потоке через {@code Schedulers.io()}
-     * @apiNote Рекомендуется очищать массив {@code password} после использования
-     *          для минимизации времени жизни конфиденциальных данных в памяти
-     */
-    @Override
-    public Completable authorize(char[] password) {
-        return Completable.fromAction(() -> {
-                    Log.d(TAG, "authorize");
-                    SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
-                    byte[] storedHash = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_HASH, ""));
-                    byte[] authSalt = Base64.getDecoder().decode(prefs.getString(PREFS_PASSWORD_SALT, ""));
-                    byte[] hash = keyGenerator.generatePBKDF2Key(password, authSalt);
-                    if (!Arrays.equals(hash, storedHash))
-                        throw new SecurityException("Wrong password");
-                })
-//                .andThen(obtainRawMasterKey(passCopy2))
-//                .flatMap(masterKey -> Single.fromCallable(() -> generateCredentials(password, masterKey)))
-//                .flatMapCompletable(this::saveEncodedKey)
-                .subscribeOn(Schedulers.io());
     }
 
     @Override
@@ -110,7 +61,6 @@ public class KeyManagerImpl implements KeyManager {
                 .doFinally(() -> Arrays.fill(password, '\0'))
                 .flatMapCompletable(credentials -> Completable.complete()
                                 .concatWith(saveEncodedKeyToDb(credentials))
-                                .concatWith(saveAuthInfo(credentials.authSalt, credentials.passwordHash))
                                 .concatWith(putToKeystore(credentials.masterKey))
                                 .doFinally(credentials::clear)
                 )
@@ -119,16 +69,14 @@ public class KeyManagerImpl implements KeyManager {
 
     @Override
     public Completable changePassword(char[] password, char[] newPassword) {
-        // TODO: rollback!
         return Completable.fromAction(() -> validatePassword(newPassword))
-                .andThen(authorize(password))
+                .andThen(checkAccessToDatabase(password))
                 .doOnComplete(() -> Log.i(TAG, "Changing password started"))
                 .andThen(obtainRawMasterKey(password))
                 .flatMap(masterKey -> Single.fromCallable(() -> generateCredentials(newPassword, masterKey)))
-
                 .flatMapCompletable(credentials -> Completable.complete()
                         .concatWith(saveEncodedKeyToDb(credentials))
-                        .concatWith(saveAuthInfo(credentials.authSalt, credentials.passwordHash))
+                        // no need to call putToKeystore()
                         .doFinally(credentials::clear)
                 )
                 .doFinally(() -> Arrays.fill(password, '\0'))
@@ -142,7 +90,6 @@ public class KeyManagerImpl implements KeyManager {
         return obtainRawMasterKey(password)
                 .flatMap(masterKey -> Single.fromCallable(() -> generateCredentials(password, masterKey)))
                 .flatMapCompletable(credentials -> Completable.complete()
-                        .concatWith(saveAuthInfo(credentials.authSalt, credentials.passwordHash))
                         .concatWith(putToKeystore(credentials.masterKey))
                         .doFinally(credentials::clear)
 
@@ -160,6 +107,14 @@ public class KeyManagerImpl implements KeyManager {
                     CryptoHelper.decrypt(entity.validationText, aes);
                     return Completable.complete();
                 });
+    }
+
+    @Override
+    public Completable checkAccessToDatabase(char[] password) {
+        return masterKeyRepository.getMasterKeySingle()
+                .timeout(5, TimeUnit.SECONDS)
+                .subscribeOn(Schedulers.io())
+                .flatMapCompletable(mk -> checkAccessToDatabase(password, mk));
     }
 
     private Single<byte[]> obtainRawMasterKey(char[] password) {
@@ -213,17 +168,6 @@ public class KeyManagerImpl implements KeyManager {
         Log.d(TAG, "validatePassword");
         if (password.length < 4)
             throw new IllegalArgumentException("Password length must be at least 4 symbols");
-    }
-
-    private Completable saveAuthInfo(byte[] authSalt, byte[] passwordHash) {
-        return Completable.fromAction(() -> {
-                    SharedPreferences prefs = context.getSharedPreferences(AUTH_PREFS, Context.MODE_PRIVATE);
-                    prefs.edit()
-                            .putString(PREFS_PASSWORD_HASH, Base64.getEncoder().encodeToString(passwordHash))
-                            .putString(PREFS_PASSWORD_SALT, Base64.getEncoder().encodeToString(authSalt))
-                            .apply();
-                })
-                .subscribeOn(Schedulers.io());
     }
 
     private Completable saveEncodedKeyToDb(Credentials credentials) {

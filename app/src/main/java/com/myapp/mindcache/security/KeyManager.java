@@ -14,8 +14,6 @@ public interface KeyManager {
 
     Completable registerUser(char[] password);
 
-    Completable authorize(char[] password);
-
     SecretKey getMasterKey() throws Exception, AuthError;
 
     Completable changePassword(char[] oldPassword, char[] newPassword);
@@ -23,4 +21,6 @@ public interface KeyManager {
     Completable updatePassword(char[] password);
 
     Completable checkAccessToDatabase(char[] password, MasterKeyEntity masterKey);
+
+    Completable checkAccessToDatabase(char[] password);
 }

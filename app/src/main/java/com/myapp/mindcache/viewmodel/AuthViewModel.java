@@ -70,7 +70,7 @@ public class AuthViewModel extends AndroidViewModel {
                 .subscribeOn(Schedulers.io())
                 .doOnSubscribe(s -> isLoading.postValue(true))
                 .observeOn(AndroidSchedulers.mainThread())
-                .andThen(keyManager.authorize(password))
+                .andThen(keyManager.checkAccessToDatabase(password))
                 .doFinally(() -> Arrays.fill(password, '\0'))
                 .subscribe(
                         () -> {
