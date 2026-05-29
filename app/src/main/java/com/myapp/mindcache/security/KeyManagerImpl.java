@@ -52,6 +52,32 @@ public class KeyManagerImpl implements KeyManager {
         return masterKeyRepository.exists();
     }
 
+
+    /**
+     * Аутентифицирует пользователя по паролю.
+     * <p>
+     * Метод проверяет соответствие переданного пароля сохранённому хешу.
+     * При успешной проверке Completable завершается без ошибок, иначе — с {@link SecurityException}.
+     * </p>
+     *
+     * <p><b>Алгоритм работы:</b></p>
+     * <ol>
+     *   <li>Чтение сохранённого хеша и соли из SharedPreferences</li>
+     *   <li>Декодирование из Base64 в байтовые массивы</li>
+     *   <li>Генерация PBKDF2-хеша переданного пароля с использованием соли</li>
+     *   <li>Сравнение полученного хеша с сохранённым</li>
+     * </ol>
+     *
+     * @param password пароль для аутентификации (массив символов)
+     * @return Completable, завершающийся при успешной аутентификации
+     * @throws SecurityException если пароль неверный
+     * @throws IllegalArgumentException если сохранённые данные отсутствуют или повреждены
+     * @throws RuntimeException при ошибках чтения SharedPreferences или декодирования Base64
+     *
+     * @implNote Метод выполняется на фоновом потоке через {@code Schedulers.io()}
+     * @apiNote Рекомендуется очищать массив {@code password} после использования
+     *          для минимизации времени жизни конфиденциальных данных в памяти
+     */
     @Override
     public Completable authorize(char[] password) {
         return Completable.fromAction(() -> {
