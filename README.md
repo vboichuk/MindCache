@@ -23,20 +23,22 @@ MindCache - Secure Notes Application
 
 **Security Architecture**
 
-- User password never stored on device
-- Master key is stored in Android Keystore
-- Individual note encryption with unique IVs
-- Biometric authentication integration
-- Secure key derivation using PBKDF2 with 600,000 iterations
+* Notes are encrypted using AES-256 with a unique IV (Initialization Vector) per note.
+* Master Key (256-bit) 
+	– is used for encrypting all notes
+    - is stored in secure Android Keystore
+    - the encrypted master key is stored in the master_key table in the database
+	- is never stored as plaintext
+
+* User password
+	- is used for encrypting the master key before storing
+	- is never stored anywhere
+
+* PBKDF2 with 600,000 iterations is used to derive a key from the password and salt.
+* Biometric authentication is supported for unlocking.
+
 
 **Requirements**
 - Android 8.0+ (API level 26+)
 - Biometric sensor (optional, for biometric authentication)
-
-
-Notes are encrypted with a 256-bit master key
-
-The master key is encrypted using a key (password + salt) and stored in the database in the master_key table
-
-The master key is also stored in the Android Keystore
 
