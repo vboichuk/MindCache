@@ -47,7 +47,7 @@ public class BiometricAuthHelper {
         }
 
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle(fragment.getString(R.string.login_into_app))
+                .setTitle(fragment.getString(R.string.confirm_access))
                 .setAllowedAuthenticators(
                         BiometricManager.Authenticators.BIOMETRIC_WEAK |
                                 BiometricManager.Authenticators.DEVICE_CREDENTIAL)
